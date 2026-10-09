@@ -45,7 +45,7 @@ const BRIDGE_VOICE_CONFIG={
                           // do that and override LB.get().voice if bella isn't actually the best-sounding one.
  language:'en-US',
  volume:0.92,
- rate:{conversational:0.95,pronunciation:0.80},           // pronunciation stays slower without ever sounding robotic
+ rate:{conversational:0.85,pronunciation:0.80},           // slowed down (was 0.95) so Bridge's narration/reading is easier for young learners to follow; pronunciation stays slower without ever sounding robotic
  pitch:1.0,                                                // placeholder: Kokoro exposes no pitch control today
  style:{conversational:'warm',pronunciation:'clear'},      // placeholder: no style/emotion control in the current engine
  pronunciationMode:{extraClear:true,deliberate:true}
@@ -76,7 +76,7 @@ let _cur=null,_failed=false;
 function slugOf(t){return t.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim().replace(/\s+/g,'-').slice(0,120)}
 function stopAudio(){try{speechSynthesis.cancel()}catch(e){}if(_cur){_cur.onended=null;_cur.onerror=null;_cur.pause();_cur=null}}
 function deviceSay(t,mode){try{speechSynthesis.speak(utter(t,mode||'conversational'))}catch(e){}}
-function playClip(b64,t,mode,done){const a=new Audio('data:audio/mpeg;base64,'+b64);_cur=a;_failed=false;a.volume=BRIDGE_VOICE_CONFIG.volume;
+function playClip(b64,t,mode,done){const a=new Audio('data:audio/mpeg;base64,'+b64);_cur=a;_failed=false;a.volume=BRIDGE_VOICE_CONFIG.volume;a.playbackRate=BRIDGE_VOICE_CONFIG.rate[mode||'conversational'];
  a.onended=()=>{if(done)done()};
  a.onerror=()=>{if(_failed)return;_failed=true;deviceSay(t,mode);if(done)done()};
  const r=a.play();if(r&&r.catch)r.catch(()=>{if(_failed)return;_failed=true;deviceSay(t,mode);if(done)done()})}
