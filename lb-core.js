@@ -4,8 +4,8 @@
    see-you-tomorrow) -- extracted so it's downloaded/cached once instead of six
    times. No logic changed from the original inline version. */
 const LB={
- /* DAILY LOCK: set to true when the founder says to turn on the one-lesson-per-day rule. */
- LOCK:false,
+ /* DAILY LOCK: one-lesson-per-day rule, turned on per the founder's request. */
+ LOCK:true,
  KEY:'lb_student_v1',
  get(){let s={};try{s=JSON.parse(localStorage.getItem(this.KEY))||{}}catch(e){}
   return Object.assign({level:'explorer',completed:[],dayOffset:0},s)},
