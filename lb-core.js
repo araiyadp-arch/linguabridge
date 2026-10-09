@@ -99,3 +99,141 @@ function bridgeSpeakSeq(arr,mode){stopAudio();let i=0;const v=AUDIO.voice();cons
 // conversational mode through BRIDGE_VOICE_CONFIG without needing to change their call sites.
 function speak(t){bridgeSpeak(t,{mode:'conversational'})}
 function speakSeq(arr){bridgeSpeakSeq(arr,'conversational')}
+
+/* ------------------------------------------------------------------
+   ASK BRIDGE — a floating "ask a question" chat widget, available on
+   every page that loads this file (lesson flow + dashboard). Calls the
+   Cloudflare Worker's /api/ask-bridge endpoint (kid-safe system prompt,
+   rate-limited, logged for founder review — see worker/src/index.js).
+   Self-contained: injects its own styles/markup, no page changes needed.
+   ------------------------------------------------------------------ */
+(function () {
+  const ASK_BRIDGE_API = 'https://api.lingua-bridge.us/api/ask-bridge';
+
+  function injectStyles() {
+    const css = `
+      #askBridgeBtn{position:fixed;right:20px;bottom:20px;z-index:9999;background:#159FE8;color:#fff;
+        border:none;border-radius:999px;padding:14px 20px;font-family:inherit;font-weight:600;font-size:.95rem;
+        box-shadow:0 10px 24px rgba(11,59,107,.28);cursor:pointer;display:flex;align-items:center;gap:8px}
+      #askBridgeBtn:hover{background:#0f86c4}
+      #askBridgePanel{position:fixed;right:20px;bottom:86px;z-index:9999;width:320px;max-width:calc(100vw - 40px);
+        max-height:60vh;background:#fff;border-radius:18px;box-shadow:0 16px 40px rgba(11,59,107,.28);
+        display:none;flex-direction:column;overflow:hidden;font-family:inherit}
+      #askBridgePanel.open{display:flex}
+      #askBridgeHead{background:#0B3B6B;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+      #askBridgeHead span{font-weight:700}
+      #askBridgeClose{background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;line-height:1}
+      #askBridgeLog{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:#F4FAFF}
+      #askBridgeLog .ab-msg{border-radius:14px;padding:9px 12px;font-size:.88rem;line-height:1.4;max-width:88%}
+      #askBridgeLog .ab-q{background:#159FE8;color:#fff;align-self:flex-end}
+      #askBridgeLog .ab-a{background:#fff;color:#0B3B6B;align-self:flex-start;border:1px solid #e3eef7}
+      #askBridgeLog .ab-hint{color:#5b6a78;font-size:.8rem;text-align:center}
+      #askBridgeForm{display:flex;gap:8px;padding:10px;border-top:1px solid #e3eef7}
+      #askBridgeInput{flex:1;border:1px solid #cfe3f2;border-radius:10px;padding:8px 10px;font-family:inherit;font-size:.88rem}
+      #askBridgeSend{background:#12864A;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:600;cursor:pointer}
+      #askBridgeSend:disabled{opacity:.6;cursor:default}
+    `;
+    const style = document.createElement('style');
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
+  function buildWidget() {
+    const btn = document.createElement('button');
+    btn.id = 'askBridgeBtn';
+    btn.type = 'button';
+    btn.innerHTML = '🤖 Ask Bridge';
+
+    const panel = document.createElement('div');
+    panel.id = 'askBridgePanel';
+    panel.innerHTML =
+      '<div id="askBridgeHead"><span>🤖 Ask Bridge</span><button id="askBridgeClose" type="button" aria-label="Close">✕</button></div>' +
+      '<div id="askBridgeLog"><div class="ab-hint">Ask Bridge about a word, a sentence, or today’s lesson!</div></div>' +
+      '<form id="askBridgeForm"><input id="askBridgeInput" type="text" maxlength="300" placeholder="Type your question…" autocomplete="off"/>' +
+      '<button id="askBridgeSend" type="submit">Send</button></form>';
+
+    document.body.appendChild(btn);
+    document.body.appendChild(panel);
+
+    const log = panel.querySelector('#askBridgeLog');
+    const form = panel.querySelector('#askBridgeForm');
+    const input = panel.querySelector('#askBridgeInput');
+    const sendBtn = panel.querySelector('#askBridgeSend');
+
+    function addMsg(cls, text) {
+      const div = document.createElement('div');
+      div.className = 'ab-msg ' + cls;
+      div.textContent = text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    btn.addEventListener('click', () => {
+      panel.classList.toggle('open');
+      if (panel.classList.contains('open')) input.focus();
+    });
+    panel.querySelector('#askBridgeClose').addEventListener('click', () => {
+      panel.classList.remove('open');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) return;
+      addMsg('ab-q', q);
+      input.value = '';
+      input.disabled = true;
+      sendBtn.disabled = true;
+      const thinking = document.createElement('div');
+      thinking.className = 'ab-msg ab-a';
+      thinking.textContent = 'Bridge is thinking…';
+      log.appendChild(thinking);
+      log.scrollTop = log.scrollHeight;
+
+      let levelCtx = '';
+      let topicCtx = '';
+      try {
+        const st = LB.get();
+        levelCtx = st && st.level ? st.level : '';
+      } catch (e) {}
+      try {
+        if (typeof C !== 'undefined' && C && C.topic && C.topic.name) topicCtx = C.topic.name;
+      } catch (e) {}
+
+      try {
+        const res = await fetch(ASK_BRIDGE_API, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q, level: levelCtx, lessonTopic: topicCtx }),
+        });
+        const data = await res.json().catch(() => ({}));
+        thinking.remove();
+        if (res.ok && data.answer) {
+          addMsg('ab-a', data.answer);
+          try { bridgeSpeak(data.answer, { mode: 'conversational' }); } catch (e) {}
+        } else {
+          addMsg('ab-a', (data && data.error) || "Bridge couldn't answer that right now. Please try again!");
+        }
+      } catch (err) {
+        thinking.remove();
+        addMsg('ab-a', "Bridge couldn't connect right now. Please try again in a moment!");
+      } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    });
+  }
+
+  function init() {
+    injectStyles();
+    buildWidget();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

@@ -35,6 +35,8 @@ New lesson audio: lessons written before the Kokoro neural voice clips existed h
 
 Founder login is real (not a placeholder): a Cloudflare Worker (`worker/`) + D1 database at `api.lingua-bridge.us`, checked by `linguabridge-login-2.html` and `linguabridge-dashboard.html`. Real student accounts are a separate, not-yet-decided piece of work — see the project's roadmap doc, §14.
 
+The same Worker also powers **Ask Bridge** — a floating chat widget (added by `lb-core.js`, so it's on every lesson-flow page) that lets a student type a question and get a real answer from Bridge, via Cloudflare Workers AI. It's scoped hard to kid-safe English-learning topics by its system prompt, rate-limited per visitor, and every exchange is logged to D1 for the founder to review. See `worker/README.md` for what's required to deploy it.
+
 ## Deployment
 
 A `CNAME` file is included for `lingua-bridge.us`. This repo is laid out for GitHub Pages (enable Pages in repo Settings → Pages → Deploy from a branch) or any static host that can serve a flat folder of files.

@@ -11,12 +11,26 @@
  * lingua-bridge.us use CORS + credentials:"include".
  *
  * Endpoints:
- *   POST /api/login   { username, password } -> sets httpOnly session cookie
- *   GET  /api/me                              -> { authenticated, username, role }
- *   POST /api/logout                          -> clears session cookie
+ *   POST /api/login       { username, password } -> sets httpOnly session cookie
+ *   GET  /api/me                                  -> { authenticated, username, role }
+ *   POST /api/logout                              -> clears session cookie
+ *   POST /api/ask-bridge  { question, level?, lessonTopic? } -> { answer }
+ *        "Ask Bridge" — lets a student type a question to Bridge and get a
+ *        real answer, using Cloudflare Workers AI (no external API key
+ *        needed). Scoped hard to kid-safe, English-learning topics by the
+ *        system prompt below; rate-limited per visitor via KV; every
+ *        exchange is logged to D1 (bridge_questions) so the founder can
+ *        review what kids are actually asking/getting. NOT behind the
+ *        founder login — the lesson pages themselves aren't login-gated
+ *        yet either (no real student accounts exist), so this endpoint's
+ *        safety has to come from the system prompt + rate limit, not from
+ *        "only logged-in users can reach it."
  *
  * Bindings required (set in the Cloudflare dashboard when creating the Worker):
- *   DB -> the "linguabridge" D1 database
+ *   DB         -> the "linguabridge" D1 database
+ *   AI         -> Workers AI (Settings -> Bindings -> Add -> Workers AI; no
+ *                 extra setup/account needed, it's built into Cloudflare)
+ *   RATE_LIMIT -> the "linguabridge-ask-bridge-ratelimit" KV namespace
  *
  * Deployed by pasting this file into the Cloudflare dashboard's Worker
  * editor (no CLI/deploy tool was available when this was built), binding
@@ -224,6 +238,115 @@ async function handleLogout(request, env) {
   return jsonResponse({ ok: true }, 200, request, { "Set-Cookie": cookie });
 }
 
+// ------------------------------------------------------------------
+// Ask Bridge — a kid-safe Q&A chat, answered by Cloudflare Workers AI.
+// ------------------------------------------------------------------
+
+const ASK_BRIDGE_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const ASK_BRIDGE_MAX_QUESTION_LEN = 300;
+const ASK_BRIDGE_DAILY_LIMIT = 40; // per visitor (by IP), resets daily
+
+// This system prompt is the actual safety boundary for this feature (see
+// the big comment above). Keep it strict; don't loosen it to make answers
+// "more helpful" — a wrong refusal is a much smaller problem than a bad
+// answer to a 5-year-old.
+const ASK_BRIDGE_SYSTEM_PROMPT = `You are Bridge, a friendly robot mascot inside LinguaBridge, a private English-learning app for kids and teens ages 5 to 17.
+
+Your ONLY job is to help with English learning: words, grammar, pronunciation, spelling, how to say something, what a word/phrase means, or simple questions about the current lesson. Answer in short, warm, age-appropriate sentences (2-4 sentences max). Use simple words. Be encouraging, like a kind teacher.
+
+Hard rules, no exceptions:
+- Never discuss or generate anything violent, sexual, scary, hateful, or otherwise inappropriate for a child.
+- Never ask the student for personal information (full name, address, phone number, school name, photos, passwords, etc.), and if they share any, don't repeat it back or store it in your answer — just gently redirect to the lesson.
+- If a question is about something outside English learning (other homework subjects, personal advice, current events, or anything an adult should handle), kindly say that's not something Bridge can help with here, and suggest asking a teacher or parent.
+- If a question suggests the student might be upset, in danger, or need help from an adult (bullying, being hurt, feeling unsafe, etc.), gently and clearly tell them to talk to a trusted adult, parent, or teacher right away. Do not try to solve that problem yourself.
+- Never pretend to be human, never claim feelings you don't have in a way that could confuse a young child about what you are, and never break character in a way that's scary or confusing.
+- If you are at all unsure whether something is appropriate to answer, politely decline and suggest asking a teacher or parent instead.`;
+
+function clientKey(request) {
+  return request.headers.get("CF-Connecting-IP") || "unknown";
+}
+
+async function handleAskBridge(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: "Invalid request body." }, 400, request);
+  }
+
+  const question = (body.question || "").toString().trim();
+  const level = (body.level || "").toString().slice(0, 40);
+  const lessonTopic = (body.lessonTopic || "").toString().slice(0, 80);
+
+  if (!question) {
+    return jsonResponse({ error: "Please type a question first." }, 400, request);
+  }
+  if (question.length > ASK_BRIDGE_MAX_QUESTION_LEN) {
+    return jsonResponse(
+      { error: "That question is a bit long — can you make it shorter?" },
+      400,
+      request
+    );
+  }
+
+  // Rate limit: N questions per visitor (by IP) per UTC day.
+  const today = new Date().toISOString().slice(0, 10);
+  const rlKey = `askbridge:${clientKey(request)}:${today}`;
+  const countRaw = await env.RATE_LIMIT.get(rlKey);
+  const count = countRaw ? parseInt(countRaw, 10) : 0;
+  if (count >= ASK_BRIDGE_DAILY_LIMIT) {
+    return jsonResponse(
+      {
+        error:
+          "Bridge has answered a lot of questions today! Please try again tomorrow.",
+      },
+      429,
+      request
+    );
+  }
+
+  let answer;
+  try {
+    const userPrompt = lessonTopic
+      ? `(Student is on the "${lessonTopic}" lesson, level: ${level || "unknown"}.) Student's question: ${question}`
+      : question;
+
+    const aiResult = await env.AI.run(ASK_BRIDGE_MODEL, {
+      messages: [
+        { role: "system", content: ASK_BRIDGE_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 220,
+    });
+
+    answer = (aiResult && aiResult.response ? aiResult.response : "").trim();
+    if (!answer) {
+      answer =
+        "Hmm, I'm not sure how to answer that one. Can you try asking a different way, or ask your teacher?";
+    }
+  } catch (e) {
+    return jsonResponse(
+      { error: "Bridge couldn't think of an answer right now. Please try again in a moment." },
+      502,
+      request
+    );
+  }
+
+  // Best-effort: don't fail the response if logging or rate-limit bookkeeping hiccups.
+  try {
+    await env.RATE_LIMIT.put(rlKey, String(count + 1), { expirationTtl: 60 * 60 * 26 });
+  } catch (e) {}
+  try {
+    await env.DB.prepare(
+      "INSERT INTO bridge_questions (client_id, question, answer, level, lesson_topic) VALUES (?, ?, ?, ?, ?)"
+    )
+      .bind(clientKey(request), question, answer, level, lessonTopic)
+      .run();
+  } catch (e) {}
+
+  return jsonResponse({ answer }, 200, request);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -248,6 +371,9 @@ export default {
     }
     if (url.pathname === "/api/logout" && request.method === "POST") {
       return handleLogout(request, env);
+    }
+    if (url.pathname === "/api/ask-bridge" && request.method === "POST") {
+      return handleAskBridge(request, env);
     }
 
     return jsonResponse({ error: "Not found." }, 404, request);
