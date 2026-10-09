@@ -27,7 +27,9 @@ The 6 lesson-flow pages used to each embed a byte-for-byte identical ~6.1MB copy
 
 ## Curriculum status
 
-Correcting an earlier version of this note: **Explorer** (the level students start on) currently has only 1 real written lesson (Chapter 1, flagged in-page as a sample/placeholder) — most of Explorer is not yet authored. **Builder** is actually the furthest along, with 11 real lessons covering its first two chapters ("My Daily Routine" + "School Life"). Communicator and Leader each have 1 sample lesson. All four levels' chapter titles and Adventure counts are approved and in `LEVELS` (in `lb-core.js`); content beyond what's listed above has not been authored yet — the dashboard shows an honest "more Adventures coming soon" state rather than placeholder content for those.
+**Explorer** (the level students start on) has Chapter 1 ("Hello!") fully written — all 4 adventures (Hello & Goodbye, What's Your Name?, How Are You?, Please and Thank You). The remaining 9 Explorer chapters (43 adventures) are being authored chapter by chapter. **Builder** is the furthest along overall, with 11 real lessons covering its first two chapters ("My Daily Routine" + "School Life"). Communicator and Leader each have 1 sample lesson. All four levels' chapter titles and Adventure counts are approved and in `LEVELS` (in `lb-core.js`); content beyond what's listed above has not been authored yet — the dashboard shows an honest "more Adventures coming soon" state rather than placeholder content for those.
+
+New lesson audio: lessons written before the Kokoro neural voice clips existed had their speech pre-recorded and baked into `lb-core.js`. Newly authored lessons (Explorer Ch.1 lessons 2-4 and onward) don't have matching recorded clips yet, so they fall back to the browser's native `speechSynthesis` API, which is lower quality. This will need a follow-up pass once Kokoro (or another TTS generator) is available to re-record them.
 
 ## Backend
 
