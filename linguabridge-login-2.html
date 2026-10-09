@@ -490,6 +490,20 @@
     const errorMsg = document.getElementById('login-error');
     const submitBtn = form.querySelector('.login-submit');
 
+    // Already logged in? Skip the form and go straight to the dashboard
+    // instead of asking for credentials again (the session cookie is
+    // valid for 7 days after a successful login).
+    (async function checkExistingSession() {
+      try {
+        const res = await fetch(API_BASE + '/api/me', { credentials: 'include' });
+        if (res.ok) {
+          window.location.href = 'linguabridge-dashboard.html';
+        }
+      } catch (err) {
+        // Couldn't reach the login service -- just show the form as usual.
+      }
+    })();
+
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
       errorMsg.style.display = 'none';
