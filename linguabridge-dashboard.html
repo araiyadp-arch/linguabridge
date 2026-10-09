@@ -1,11 +1,23 @@
 <!DOCTYPE html>
-<html lang="en"><head><script>
-  // TEMPORARY FOUNDER-ONLY LOGIN GATE (client-side only, not secure auth).
-  // Redirects back to login if this session hasn't passed the soft lock.
+<html lang="en"><head><script>document.documentElement.style.visibility = 'hidden';</script>
+<script>
+  // FOUNDER LOGIN GATE — verifies the session against the real backend
+  // (Cloudflare Worker + D1 at api.lingua-bridge.us) before showing the
+  // dashboard. Replaces the old client-side-only placeholder gate.
   (function () {
-    var ok = false;
-    try { ok = sessionStorage.getItem('lb_authed_v1') === '1'; } catch (e) {}
-    if (!ok) { window.location.replace('linguabridge-login-2.html'); }
+    var API_BASE = 'https://api.lingua-bridge.us';
+    fetch(API_BASE + '/api/me', { credentials: 'include' })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.authenticated) {
+          document.documentElement.style.visibility = 'visible';
+        } else {
+          window.location.replace('linguabridge-login-2.html');
+        }
+      })
+      .catch(function () {
+        window.location.replace('linguabridge-login-2.html');
+      });
   })();
 </script><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Learning — LinguaBridge</title>

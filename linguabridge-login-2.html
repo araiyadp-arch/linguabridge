@@ -491,29 +491,50 @@
 </script>
 
 <!-- ============================================================
-     TEMPORARY FOUNDER-ONLY LOGIN GATE
-     Client-side only — this is NOT secure authentication. It is a
-     soft lock so the founder can preview the student area while
-     the site is being built. Do not use for real student accounts;
-     a real backend + auth method is still an open decision.
+     FOUNDER LOGIN
+     Calls the real backend (Cloudflare Worker + D1) at
+     api.lingua-bridge.us. Scoped to the founder account only —
+     real student accounts/credential type are a separate,
+     not-yet-decided piece of work.
      ============================================================ -->
 <script>
   (function () {
-    const VALID_USER = 'ari87565';
-    const VALID_PASS = 'ari87565';
+    const API_BASE = 'https://api.lingua-bridge.us';
     const form = document.getElementById('login-form');
     const errorMsg = document.getElementById('login-error');
+    const submitBtn = form.querySelector('.login-submit');
 
-    form.addEventListener('submit', function (e) {
+    form.addEventListener('submit', async function (e) {
       e.preventDefault();
+      errorMsg.style.display = 'none';
       const user = document.getElementById('login-id').value.trim();
       const pass = document.getElementById('login-password').value;
 
-      if (user === VALID_USER && pass === VALID_PASS) {
-        try { sessionStorage.setItem('lb_authed_v1', '1'); } catch (err) {}
-        window.location.href = 'linguabridge-dashboard.html';
-      } else {
+      submitBtn.disabled = true;
+      const originalLabel = submitBtn.textContent;
+      submitBtn.textContent = 'Logging in…';
+
+      try {
+        const res = await fetch(API_BASE + '/api/login', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass }),
+        });
+
+        if (res.ok) {
+          window.location.href = 'linguabridge-dashboard.html';
+          return;
+        }
+
+        errorMsg.textContent = 'Incorrect username or password. Please try again.';
         errorMsg.style.display = 'block';
+      } catch (err) {
+        errorMsg.textContent = "Couldn't reach the login service. Please check your connection and try again.";
+        errorMsg.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
       }
     });
   })();
