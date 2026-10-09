@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 const s=LB.get(),L=LEVELS[s.level]||LEVELS.explorer,p=new URLSearchParams(location.search),review=p.get('review');
 const n=review?+review:s.completed.filter(c=>c.level===s.level).length+1;
-if(!review&&(LB.LOCK&&LB.doneToday(s)||n>advCount(s.level)))location.replace('linguabridge-dashboard.html');
+if(!review&&((LB.LOCK&&LB.doneToday(s)&&!LB.isFounder())||n>advCount(s.level)))location.replace('linguabridge-dashboard.html');
 const C=advFor(s.level,n);
 document.getElementById('crumb').textContent=L.emoji+' '+L.name+' · Chapter '+(chapterFor(s.level,n).index+1)+': '+chapterFor(s.level,n).name+' · Lesson '+n;
 if(review)document.getElementById('reviewBanner').innerHTML='<div class="review-banner">Review mode: nothing here changes your progress or badges.</div>';

@@ -131,10 +131,10 @@ details.proto .btn{padding:8px 18px;font-size:.88rem}
   <h3 style="margin:12px 0 6px; font-family:var(--font-head); color:var(--navy);">Compare Bridge's voice</h3>
   <p class="muted" style="margin:0 0 16px;">Tap each one to hear the same greeting. Whichever sounds most kid-friendly to you, let your developer know and it'll become the voice everywhere on the site.</p>
   <div class="btns" style="display:flex; flex-wrap:wrap; gap:10px;">
-    <button type="button" class="btn btn-secondary" data-voice="nicole">&#9654; Nicole (soft &amp; calm)</button>
     <button type="button" class="btn btn-secondary" data-voice="sarah">&#9654; Sarah (clear &amp; friendly)</button>
     <button type="button" class="btn btn-primary" data-voice="bella">&#9654; Bella (warm &amp; natural &mdash; current default)</button>
     <button type="button" class="btn btn-secondary" data-voice="sky">&#9654; Sky (bright &amp; natural)</button>
+    <button type="button" class="btn btn-secondary" data-voice="daniel">&#9654; Daniel (friendly guy &mdash; device voice)</button>
   </div>
 </div>
 <div class="bridge-row"><svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  applyLang()});
 
 
-const s=LB.get(),L=LEVELS[s.level]||LEVELS.explorer,mine=s.completed.filter(c=>c.level===s.level),locked=LB.LOCK&&LB.doneToday(s),n=mine.length+1,comingSoon=n>advCount(s.level);const T=t;document.addEventListener('langchange',()=>location.reload());
+const s=LB.get(),L=LEVELS[s.level]||LEVELS.explorer,mine=s.completed.filter(c=>c.level===s.level),locked=LB.LOCK&&LB.doneToday(s)&&!LB.isFounder(),n=mine.length+1,comingSoon=n>advCount(s.level);const T=t;document.addEventListener('langchange',()=>location.reload());
 document.getElementById('levelTag').textContent=L.emoji+' '+L.name+' · Chapter '+(chapterFor(s.level,n).index+1)+': '+chapterFor(s.level,n).name;
 document.getElementById('mapLevel').textContent=L.name;
 document.getElementById('bridgeMsg').textContent=locked?t('dash.bridge.done'):t('dash.bridge.ready');
@@ -262,6 +262,20 @@ document.getElementById('reset').onclick=()=>{s.completed=[];s.dayOffset=0;delet
 // the stored voice preference, same as a real visitor would experience it.
 if (window.LB_AUTH_PROMISE) {
   window.LB_AUTH_PROMISE.then(function (data) {
+    if (data && data.role) {
+      // Cache the role so this page (and the lesson/lesson-quiz pages) can
+      // bypass the daily lock for the founder without re-checking auth.
+      var wasFounderCached = LB.isFounder();
+      LB.cacheRole(data.role);
+      // If the lock was rendered on (stale/no cache yet) but the founder's
+      // role just came back, reload once so the unlocked dashboard shows
+      // immediately instead of waiting for the next visit.
+      if (data.role === 'founder' && !wasFounderCached && locked && !sessionStorage.getItem('lb_founder_unlock_reload')) {
+        sessionStorage.setItem('lb_founder_unlock_reload', '1');
+        location.reload();
+        return;
+      }
+    }
     if (data && data.role === 'founder') {
       var panel = document.getElementById('founderVoicePanel');
       if (panel) {

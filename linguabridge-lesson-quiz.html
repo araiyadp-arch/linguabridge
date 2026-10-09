@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 
 const s=LB.get(),p=new URLSearchParams(location.search),review=p.get('review'),n=review?+review:(+p.get('n')||s.completed.filter(c=>c.level===s.level).length+1);
-if(!review&&(LB.LOCK&&LB.doneToday(s)||n>advCount(s.level)))location.replace('linguabridge-dashboard.html');
+if(!review&&((LB.LOCK&&LB.doneToday(s)&&!LB.isFounder())||n>advCount(s.level)))location.replace('linguabridge-dashboard.html');
 const C=advFor(s.level,n);
 const Q=C.quiz;
 let i=0;const box=document.getElementById('qbox'),nx=document.getElementById('next'),dots=document.getElementById('dots');
