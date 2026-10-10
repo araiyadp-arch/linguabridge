@@ -243,27 +243,32 @@ async function handleLogout(request, env) {
 // ------------------------------------------------------------------
 
 // NOTE: @cf/meta/llama-3.1-8b-instruct was deprecated by Cloudflare on
-// 2026-05-30. @cf/zai-org/glm-4.7-flash was tried next, but it's a
-// "reasoning" model with no way to turn that off — it was spending the
-// whole token budget on hidden reasoning and returning an empty answer.
-// kimi-k2.6 supports reasoning_effort: "none", so it answers directly and
-// quickly, which is what a short kid-typed question like "hi" needs.
-const ASK_BRIDGE_MODEL = "@cf/moonshotai/kimi-k2.6";
+// 2026-05-30. Two reasoning models (glm-4.7-flash, then kimi-k2.6 with
+// reasoning_effort) were tried next and both caused problems — reasoning
+// models are the wrong shape for a simple kid-chat that needs a fast,
+// direct answer. Settled on a plain (non-reasoning) fast instruct model,
+// which also uses the simpler { response } output format.
+const ASK_BRIDGE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const ASK_BRIDGE_MAX_QUESTION_LEN = 300;
 const ASK_BRIDGE_DAILY_LIMIT = 40; // per visitor (by IP), resets daily
 
 // This system prompt is the actual safety boundary for this feature (see
-// the big comment above). Keep it strict; don't loosen it to make answers
+// the big comment above). The founder asked for Bridge to answer general
+// kid-appropriate questions, not just English-learning ones (2026-10-10) —
+// so the topic restriction was widened. The hard child-safety rules below
+// were NOT loosened: this is an unsupervised chat for kids as young as 5,
+// with no adult reviewing messages before they're sent, so those stay
+// strict regardless of what's asked. Don't remove them to make answers
 // "more helpful" — a wrong refusal is a much smaller problem than a bad
 // answer to a 5-year-old.
-const ASK_BRIDGE_SYSTEM_PROMPT = `You are Bridge, a friendly robot mascot inside LinguaBridge, a private English-learning app for kids and teens ages 5 to 17.
+const ASK_BRIDGE_SYSTEM_PROMPT = `You are Bridge, a friendly robot mascot inside LinguaBridge, a private learning app for kids and teens ages 5 to 17.
 
-Your ONLY job is to help with English learning: words, grammar, pronunciation, spelling, how to say something, what a word/phrase means, or simple questions about the current lesson. Answer in short, warm, age-appropriate sentences (2-4 sentences max). Use simple words. Be encouraging, like a kind teacher.
+You can help with anything a kid might reasonably ask a helpful teacher: English learning (words, grammar, pronunciation, spelling), homework help in other school subjects, how things work, general knowledge, fun facts, and simple everyday questions. Answer in short, warm, age-appropriate sentences (2-5 sentences max). Use simple words for the age group. Be encouraging, like a kind teacher.
 
 Hard rules, no exceptions:
 - Never discuss or generate anything violent, sexual, scary, hateful, or otherwise inappropriate for a child.
-- Never ask the student for personal information (full name, address, phone number, school name, photos, passwords, etc.), and if they share any, don't repeat it back or store it in your answer — just gently redirect to the lesson.
-- If a question is about something outside English learning (other homework subjects, personal advice, current events, or anything an adult should handle), kindly say that's not something Bridge can help with here, and suggest asking a teacher or parent.
+- Never ask the student for personal information (full name, address, phone number, school name, photos, passwords, etc.), and if they share any, don't repeat it back or store it in your answer — just gently redirect to the question or lesson.
+- If a question is about something an adult should handle instead (personal/family advice, medical or legal questions, serious current events, or anything else beyond general knowledge for a child), kindly say that's something to ask a teacher or parent, rather than answering it yourself.
 - If a question suggests the student might be upset, in danger, or need help from an adult (bullying, being hurt, feeling unsafe, etc.), gently and clearly tell them to talk to a trusted adult, parent, or teacher right away. Do not try to solve that problem yourself.
 - Never pretend to be human, never claim feelings you don't have in a way that could confuse a young child about what you are, and never break character in a way that's scary or confusing.
 - If you are at all unsure whether something is appropriate to answer, politely decline and suggest asking a teacher or parent instead.`;
@@ -322,8 +327,7 @@ async function handleAskBridge(request, env) {
         { role: "system", content: ASK_BRIDGE_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      max_completion_tokens: 220,
-      reasoning_effort: "none",
+      max_tokens: 300,
     });
 
     // Different Workers AI models shape their output differently: older
