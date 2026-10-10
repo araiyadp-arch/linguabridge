@@ -335,7 +335,6 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
         thinking.remove();
         if (res.ok && data.answer) {
           addMsg('ab-a', data.answer);
-          try { bridgeSpeak(data.answer, { mode: 'conversational' }); } catch (e) {}
         } else {
           addMsg('ab-a', (data && data.error) || "Bridge couldn't answer that right now. Please try again!");
         }
