@@ -254,12 +254,12 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       #askBridgeLog .ab-q{background:#159FE8;color:#fff;align-self:flex-end}
       #askBridgeLog .ab-a{background:#fff;color:#0B3B6B;align-self:flex-start;border:1px solid #e3eef7}
       #askBridgeLog .ab-hint{color:#5b6a78;font-size:.8rem;text-align:center}
-      #askBridgeForm{display:flex;gap:8px;padding:10px;border-top:1px solid #e3eef7}
-      #askBridgeInput{flex:1;border:1px solid #cfe3f2;border-radius:10px;padding:8px 10px;font-family:inherit;font-size:.88rem}
-      #askBridgeMic{background:#F4FAFF;color:#0B3B6B;border:1px solid #cfe3f2;border-radius:10px;padding:8px 10px;
-        font-size:1rem;line-height:1;cursor:pointer;flex-shrink:0}
-      #askBridgeMic:hover{background:#e9f4fc}
-      #askBridgeMic.listening{background:#EAF7EF;border-color:#12864A;animation:abPulse 1.1s ease-in-out infinite}
+      #askBridgeForm{display:flex;flex-wrap:wrap;gap:8px;padding:10px;border-top:1px solid #e3eef7}
+      #askBridgeInput{flex:1;min-width:0;border:1px solid #cfe3f2;border-radius:10px;padding:8px 10px;font-family:inherit;font-size:.88rem}
+      #askBridgeMic{background:#fff;color:#12864A;border:1.5px solid #12864A;border-radius:999px;padding:7px 14px;
+        font-family:inherit;font-size:.82rem;font-weight:600;line-height:1;cursor:pointer;flex-shrink:0;white-space:nowrap}
+      #askBridgeMic:hover{background:rgba(18,134,74,.06)}
+      #askBridgeMic.listening{background:#EAF7EF;animation:abPulse 1.1s ease-in-out infinite}
       #askBridgeMic:disabled{opacity:.5;cursor:default}
       @keyframes abPulse{0%,100%{box-shadow:0 0 0 0 rgba(18,134,74,.35)}50%{box-shadow:0 0 0 7px rgba(18,134,74,0)}}
       #askBridgeSend{background:#12864A;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:600;cursor:pointer}
@@ -296,7 +296,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       '<div id="askBridgeHead"><span style="display:flex;align-items:center;gap:8px">' + BRIDGE_ICON_SVG + '<span>Ask Bridge</span></span><button id="askBridgeClose" type="button" aria-label="Close">✕</button></div>' +
       '<div id="askBridgeLog"><div class="ab-hint">Ask Bridge about a word, a sentence, or today’s lesson!</div></div>' +
       '<form id="askBridgeForm"><input id="askBridgeInput" type="text" maxlength="300" placeholder="Type your question…" autocomplete="off"/>' +
-      '<button id="askBridgeMic" type="button" aria-label="Speak your question">🎤</button>' +
+      '<button id="askBridgeMic" type="button" aria-label="Practice saying this word out loud">🎤 Speak</button>' +
       '<button id="askBridgeSend" type="submit">Send</button></form>';
 
     document.body.appendChild(btn);
@@ -329,15 +329,30 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       return div;
     }
 
-    // Lets a kid speak their question instead of typing it — fills the
-    // input so they can glance it over (or add more) before hitting Send,
-    // rather than auto-sending straight from speech.
+    // Pronunciation practice for any word, including ones not covered by a
+    // lesson plan — same pattern as the "🎤 Speak" button on the lesson
+    // pages (type/say the word -> try saying it -> hear whether it
+    // matched), just reused here so Bridge can help with words outside
+    // the curriculum. Checked entirely on-device (no AI call, no voice
+    // played back) — type the word in the box, then tap Speak and say it.
+    const PRAISE = [
+      "🌟 Wow, that sounded great!",
+      "🎉 Yes! I heard you loud and clear!",
+      "👏 Great speaking! You've got it!",
+      "😊 Super! That was just right!",
+    ];
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       micBtn.disabled = true;
-      micBtn.title = "Your device can't listen for speech right now — you can still type your question!";
+      micBtn.title = "Your device can't listen for speech right now.";
     } else {
       micBtn.addEventListener('click', () => {
+        const target = input.value.trim();
+        if (!target) {
+          addMsg('ab-a', 'Type a word or sentence first, then tap Speak so I can hear you try it!');
+          input.focus();
+          return;
+        }
         const rec = new SR();
         rec.lang = 'en-US';
         micBtn.classList.add('listening');
@@ -345,10 +360,23 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
         rec.onresult = (e) => {
           stop();
           const said = e.results[0][0].transcript;
-          input.value = input.value ? input.value + ' ' + said : said;
-          input.focus();
+          const heard = said.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+          const wanted = target.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+          if (heard.includes(wanted) || wanted.includes(heard)) {
+            addMsg('ab-a', PRAISE[Math.floor(Math.random() * PRAISE.length)]);
+          } else {
+            addMsg('ab-a', 'Ooh, I heard “' + said + '”. That was a brave try! 💛 Let’s try “' + target + '” again whenever you’re ready — tap Speak!');
+          }
         };
-        rec.onerror = stop;
+        rec.onerror = (e) => {
+          stop();
+          addMsg(
+            'ab-a',
+            e.error === 'not-allowed'
+              ? "I can't use the microphone right now, and that's okay!"
+              : "I didn't catch that — tap Speak and we'll try again. No rush!"
+          );
+        };
         rec.onend = stop;
         try { rec.start(); } catch (e) { stop(); }
       });
