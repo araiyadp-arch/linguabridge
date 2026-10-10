@@ -251,6 +251,8 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       #askBridgeLog .ab-msg{border-radius:14px;padding:9px 12px;font-size:.88rem;line-height:1.4;max-width:88%;
         display:flex;align-items:flex-start;gap:6px}
       #askBridgeLog .ab-msg .ab-text{flex:1;white-space:pre-wrap}
+      #askBridgeLog .ab-listen{background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 2px;flex-shrink:0}
+      #askBridgeLog .ab-listen:hover{opacity:.7}
       #askBridgeLog .ab-q{background:#159FE8;color:#fff;align-self:flex-end}
       #askBridgeLog .ab-a{background:#fff;color:#0B3B6B;align-self:flex-start;border:1px solid #e3eef7}
       #askBridgeLog .ab-hint{color:#5b6a78;font-size:.8rem;text-align:center}
@@ -314,13 +316,25 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     const history = [];
     const MAX_HISTORY_TURNS = 10; // user+assistant messages kept, trimmed oldest-first
 
-    function addMsg(cls, text) {
+    function addMsg(cls, text, opts) {
+      opts = opts || {};
       const div = document.createElement('div');
       div.className = 'ab-msg ' + cls;
       const textSpan = document.createElement('span');
       textSpan.className = 'ab-text';
       textSpan.textContent = text;
       div.appendChild(textSpan);
+      if (opts.speakable) {
+        const listenBtn = document.createElement('button');
+        listenBtn.type = 'button';
+        listenBtn.className = 'ab-listen';
+        listenBtn.setAttribute('aria-label', 'Listen to this answer');
+        listenBtn.textContent = '🔊';
+        listenBtn.addEventListener('click', () => {
+          try { bridgeSpeak(text, { mode: 'conversational' }); } catch (e) {}
+        });
+        div.appendChild(listenBtn);
+      }
       log.appendChild(div);
       log.scrollTop = log.scrollHeight;
       return div;
@@ -328,8 +342,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
 
     // Lets a kid speak their question instead of typing it — fills the
     // input so they can glance it over (or add more) before hitting Send,
-    // rather than auto-sending straight from speech. Bridge itself never
-    // speaks its answers back; this mic is one-way, for the kid's input only.
+    // rather than auto-sending straight from speech.
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       micBtn.disabled = true;
@@ -395,7 +408,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
         const data = await res.json().catch(() => ({}));
         thinking.remove();
         if (res.ok && data.answer) {
-          addMsg('ab-a', data.answer);
+          addMsg('ab-a', data.answer, { speakable: true });
           history.push({ role: 'user', content: q });
           history.push({ role: 'assistant', content: data.answer });
           while (history.length > MAX_HISTORY_TURNS) history.shift();
