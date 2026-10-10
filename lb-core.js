@@ -63,15 +63,17 @@ const BRIDGE_VOICE_CONFIG={
  volume:0.92,
  // Rate had been slowed down repeatedly this session (0.95 -> 0.85 -> 0.82)
  // to make narration easier to follow -- but the founder heard that as
- // lazy/sluggish, not calm, and asked for something peppier, closer to a
- // kids'-song/nursery-rhyme energy. Pushed back up past the original 0.95
- // baseline. This affects playbackRate on the actual recorded Sky/Bella/
- // Sarah clips too, not just the fallback voice, so it's the one lever
- // here that really changes how lively the real site narration sounds.
- // Pronunciation mode stays a little slower than conversational so a word
- // being taught is still clear, but it's livelier than it was too.
- rate:{conversational:1.08,pronunciation:0.95},
- pitch:1.18,                                               // raised further for a brighter, more animated read -- only affects the browser fallback voice (used when a clip is missing, e.g. dynamic text), since Kokoro's recorded clips have no pitch control
+ // lazy/sluggish AND too old-sounding, not calm, and asked for something
+ // livelier and younger, closer to a 20-year-old than the original
+ // recorded tone. Since there's no way to re-record Kokoro's clips here,
+ // the two real levers are: (1) rate, pushed well past the original 0.95
+ // baseline, and (2) letting that rate change also raise pitch instead of
+ // only speeding up tempo (see `preservesPitch` in playClip() below) --
+ // together these noticeably shift the recorded Sky/Bella/Sarah clips
+ // younger-sounding, not just faster. Pronunciation mode stays a little
+ // gentler than conversational so a word being taught is still clear.
+ rate:{conversational:1.15,pronunciation:1.0},
+ pitch:1.22,                                               // raised further for a brighter, younger-sounding read -- only directly controls the browser fallback voice (used when a clip is missing, e.g. dynamic text); recorded clips get their pitch shift from rate + preservesPitch instead, since Kokoro itself exposes no pitch control
  style:{conversational:'bright',pronunciation:'clear'},    // placeholder: no style/emotion control in the current engine
  pronunciationMode:{extraClear:true,deliberate:true}
 };
@@ -107,6 +109,15 @@ function slugOf(t){return t.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim().repla
 function stopAudio(){try{speechSynthesis.cancel()}catch(e){}if(_cur){_cur.onended=null;_cur.onerror=null;_cur.pause();_cur=null}}
 function deviceSay(t,mode){try{speechSynthesis.speak(utter(t,mode||'conversational'))}catch(e){}}
 function playClip(b64,t,mode,done){const a=new Audio('data:audio/mpeg;base64,'+b64);_cur=a;_failed=false;a.volume=BRIDGE_VOICE_CONFIG.volume;a.playbackRate=BRIDGE_VOICE_CONFIG.rate[mode||'conversational'];
+ // The recorded clips' actual timbre is fixed (baked into the audio, no
+ // TTS-regeneration pipeline here to re-record it younger-sounding) --
+ // but letting playbackRate also shift pitch (instead of the browser's
+ // default pitch-preserving speed-up) is a real lever: a touch faster +
+ // a touch higher-pitched reads as noticeably younger than the raw
+ // recording. `preservesPitch`/vendor-prefixed variants default to true
+ // (speed changes, pitch stays flat); setting them false lets pitch move
+ // together with BRIDGE_VOICE_CONFIG.rate above.
+ try{a.preservesPitch=false;a.mozPreservesPitch=false;a.webkitPreservesPitch=false}catch(e){}
  a.onended=()=>{if(done)done()};
  a.onerror=()=>{if(_failed)return;_failed=true;deviceSay(t,mode);if(done)done()};
  const r=a.play();if(r&&r.catch)r.catch(()=>{if(_failed)return;_failed=true;deviceSay(t,mode);if(done)done()})}
