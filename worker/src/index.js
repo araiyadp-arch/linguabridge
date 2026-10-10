@@ -17,20 +17,20 @@
  *   POST /api/ask-bridge  { question, level?, lessonTopic? } -> { answer }
  *        "Ask Bridge" — lets a student type a question to Bridge and get a
  *        real answer, using Cloudflare Workers AI (no external API key
- *        needed). Scoped hard to kid-safe, English-learning topics by the
- *        system prompt below; rate-limited per visitor via KV; every
- *        exchange is logged to D1 (bridge_questions) so the founder can
- *        review what kids are actually asking/getting. NOT behind the
- *        founder login — the lesson pages themselves aren't login-gated
- *        yet either (no real student accounts exist), so this endpoint's
- *        safety has to come from the system prompt + rate limit, not from
- *        "only logged-in users can reach it."
+ *        needed). Scoped to kid-safe topics by the system prompt below;
+ *        unlimited (no rate limit — the founder wants the kid<->Bridge
+ *        chat to never be interrupted); every exchange is logged to D1
+ *        (bridge_questions) so the founder can review what kids are
+ *        actually asking/getting. NOT behind the founder login — the
+ *        lesson pages themselves aren't login-gated yet either (no real
+ *        student accounts exist), so this endpoint's safety has to come
+ *        from the system prompt alone, not from "only logged-in users can
+ *        reach it."
  *
  * Bindings required (set in the Cloudflare dashboard when creating the Worker):
- *   DB         -> the "linguabridge" D1 database
- *   AI         -> Workers AI (Settings -> Bindings -> Add -> Workers AI; no
- *                 extra setup/account needed, it's built into Cloudflare)
- *   RATE_LIMIT -> the "linguabridge-ask-bridge-ratelimit" KV namespace
+ *   DB -> the "linguabridge" D1 database
+ *   AI -> Workers AI (Settings -> Bindings -> Add -> Workers AI; no extra
+ *         setup/account needed, it's built into Cloudflare)
  *
  * Deployed by pasting this file into the Cloudflare dashboard's Worker
  * editor (no CLI/deploy tool was available when this was built), binding
@@ -250,7 +250,6 @@ async function handleLogout(request, env) {
 // which also uses the simpler { response } output format.
 const ASK_BRIDGE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const ASK_BRIDGE_MAX_QUESTION_LEN = 300;
-const ASK_BRIDGE_DAILY_LIMIT = 300; // per visitor (by IP), resets daily — high enough to not interrupt normal use/testing, still a backstop against runaway AI costs from one visitor
 
 // This system prompt is the actual safety boundary for this feature (see
 // the big comment above). The founder asked for Bridge to answer general
@@ -528,22 +527,6 @@ async function handleAskBridge(request, env) {
     );
   }
 
-  // Rate limit: N questions per visitor (by IP) per UTC day.
-  const today = new Date().toISOString().slice(0, 10);
-  const rlKey = `askbridge:${clientKey(request)}:${today}`;
-  const countRaw = await env.RATE_LIMIT.get(rlKey);
-  const count = countRaw ? parseInt(countRaw, 10) : 0;
-  if (count >= ASK_BRIDGE_DAILY_LIMIT) {
-    return jsonResponse(
-      {
-        error:
-          "Bridge has answered a lot of questions today! Please try again tomorrow.",
-      },
-      429,
-      request
-    );
-  }
-
   let answer;
   if (isTimeQuestion(question)) {
     // Answered deterministically (see the world-clock section above) —
@@ -592,10 +575,7 @@ async function handleAskBridge(request, env) {
     }
   }
 
-  // Best-effort: don't fail the response if logging or rate-limit bookkeeping hiccups.
-  try {
-    await env.RATE_LIMIT.put(rlKey, String(count + 1), { expirationTtl: 60 * 60 * 26 });
-  } catch (e) {}
+  // Best-effort: don't fail the response if logging hiccups.
   try {
     await env.DB.prepare(
       "INSERT INTO bridge_questions (client_id, question, answer, level, lesson_topic) VALUES (?, ?, ?, ?, ?)"
