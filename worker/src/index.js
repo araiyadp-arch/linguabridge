@@ -321,7 +321,16 @@ async function handleAskBridge(request, env) {
       max_completion_tokens: 220,
     });
 
-    answer = (aiResult && aiResult.response ? aiResult.response : "").trim();
+    // Different Workers AI models shape their output differently: older
+    // models (like the retired llama-3.1-8b-instruct) return { response },
+    // while newer OpenAI-compatible chat models (like glm-4.7-flash) return
+    // { choices: [{ message: { content } }] }. Check both so this keeps
+    // working across model swaps.
+    const rawAnswer =
+      (aiResult && aiResult.response) ||
+      (aiResult && aiResult.choices && aiResult.choices[0] && aiResult.choices[0].message && aiResult.choices[0].message.content) ||
+      "";
+    answer = rawAnswer.trim();
     if (!answer) {
       answer =
         "Hmm, I'm not sure how to answer that one. Can you try asking a different way, or ask your teacher?";
