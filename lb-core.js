@@ -251,8 +251,6 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       #askBridgeLog .ab-msg{border-radius:14px;padding:9px 12px;font-size:.88rem;line-height:1.4;max-width:88%;
         display:flex;align-items:flex-start;gap:6px}
       #askBridgeLog .ab-msg .ab-text{flex:1;white-space:pre-wrap}
-      #askBridgeLog .ab-listen{background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 2px;flex-shrink:0}
-      #askBridgeLog .ab-listen:hover{opacity:.7}
       #askBridgeLog .ab-q{background:#159FE8;color:#fff;align-self:flex-end}
       #askBridgeLog .ab-a{background:#fff;color:#0B3B6B;align-self:flex-start;border:1px solid #e3eef7}
       #askBridgeLog .ab-hint{color:#5b6a78;font-size:.8rem;text-align:center}
@@ -316,10 +314,9 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     const history = [];
     const MAX_HISTORY_TURNS = 10; // user+assistant messages kept, trimmed oldest-first
 
-    // Everything Bridge itself says (answers, errors, instructions) is read
-    // out loud automatically as it appears — not just available on tap —
-    // since younger kids on this app may not read fluently yet. The 🔊
-    // button stays too, so a kid can replay a line without retyping.
+    // Ask Bridge is plain text, no audio — Bridge never speaks here (no
+    // auto-speak, no Listen button). The mic button below is one-way, for
+    // the kid's own spoken input only.
     function addMsg(cls, text) {
       const div = document.createElement('div');
       div.className = 'ab-msg ' + cls;
@@ -327,18 +324,6 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       textSpan.className = 'ab-text';
       textSpan.textContent = text;
       div.appendChild(textSpan);
-      if (cls === 'ab-a') {
-        const listenBtn = document.createElement('button');
-        listenBtn.type = 'button';
-        listenBtn.className = 'ab-listen';
-        listenBtn.setAttribute('aria-label', 'Listen to this again');
-        listenBtn.textContent = '🔊';
-        listenBtn.addEventListener('click', () => {
-          try { bridgeSpeak(text, { mode: 'conversational' }); } catch (e) {}
-        });
-        div.appendChild(listenBtn);
-        try { bridgeSpeak(text, { mode: 'conversational' }); } catch (e) {}
-      }
       log.appendChild(div);
       log.scrollTop = log.scrollHeight;
       return div;
@@ -369,17 +354,9 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       });
     }
 
-    const HINT_TEXT = 'Ask Bridge about a word, a sentence, or today’s lesson!';
-    let hintSpoken = false;
     btn.addEventListener('click', () => {
       panel.classList.toggle('open');
-      if (panel.classList.contains('open')) {
-        input.focus();
-        if (!hintSpoken) {
-          hintSpoken = true;
-          try { bridgeSpeak(HINT_TEXT, { mode: 'conversational' }); } catch (e) {}
-        }
-      }
+      if (panel.classList.contains('open')) input.focus();
     });
     panel.querySelector('#askBridgeClose').addEventListener('click', () => {
       panel.classList.remove('open');
