@@ -119,6 +119,112 @@ function speak(t){bridgeSpeak(t,{mode:'conversational'})}
 function speakSeq(arr){bridgeSpeakSeq(arr,'conversational')}
 
 /* ------------------------------------------------------------------
+   LESSON MINI-GAME — one small reusable engine, not per-lesson authored
+   content. Built directly from a lesson's own vocab1/vocab2 (word, meaning,
+   emoji triples), which every lesson already has, so it works on all ~109
+   existing lessons and any future one with zero extra authoring.
+
+   Three game types, picked (and combined) by level so difficulty rises with
+   level, per the founder's request:
+     - explorer:     Picture Match only (tap a word, tap its matching emoji)
+     - builder:       + Memory Flip (find the emoji/word pairs)
+     - communicator:  + Fill in the Blank (complete a line from the lesson's
+                       own conversation using a word bank)
+     - leader:        all three, with more items and fewer hints
+   Each mini-game calls onDone() exactly once, the moment it's fully solved
+   (every pair/word/round) -- not a running count -- so the host page can
+   gate its "Next" button the same simple way it gates every other step
+   (need[step]=1, one gate(step,0) callback), with no step-specific counting
+   logic on the page side.
+   ------------------------------------------------------------------ */
+function LB_gameItems(lesson,max){
+ const raw=[].concat(lesson.vocab1||[],lesson.vocab2||[]);
+ const seen=new Set(),items=[];
+ for(const [w,h,e] of raw){if(!w||!e||seen.has(w))continue;seen.add(w);items.push({word:w,hint:h,emoji:e});if(items.length>=max)break}
+ return items}
+function LB_shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+/* Picture Match: tap a word chip, then tap the emoji that goes with it. Wrong taps just bounce --
+   never penalized, same spirit as mountChoices(). Calls onDone() once every item is matched. */
+function LB_mountMatchGame(el,items,onDone){
+ let picked=null;const done=new Set();
+ el.innerHTML='<p class="muted" style="margin:0 0 14px;font-size:.92rem">Tap a word, then tap its picture.</p>'+
+  '<div class="lb-game-words" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px"></div>'+
+  '<div class="lb-game-pics" style="display:flex;flex-wrap:wrap;gap:10px"></div>';
+ const wordsEl=el.querySelector('.lb-game-words'),picsEl=el.querySelector('.lb-game-pics');
+ items.forEach((it,i)=>{
+  const wb=document.createElement('button');wb.className='btn btn-secondary';wb.textContent=it.word;wb.dataset.i=i;
+  wb.onclick=()=>{if(done.has(i))return;[...wordsEl.children].forEach(b=>b.classList.remove('btn-primary'));wb.classList.add('btn-primary');picked=i};
+  wordsEl.appendChild(wb)});
+ LB_shuffle(items.map((it,i)=>i)).forEach(i=>{
+  const it=items[i];const pb=document.createElement('button');pb.className='btn btn-secondary';pb.style.fontSize='1.6rem';pb.textContent=it.emoji;pb.dataset.i=i;
+  pb.onclick=()=>{if(done.has(i)||picked===null)return;
+   if(picked===i){pb.classList.add('btn-primary');pb.disabled=true;wordsEl.children[i].disabled=true;wordsEl.children[i].classList.remove('btn-primary');wordsEl.children[i].style.opacity='.5';done.add(i);picked=null;if(done.size>=items.length)onDone()}
+   else{pb.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],{duration:260})}};
+  picsEl.appendChild(pb)})}
+/* Memory Flip: classic pair-matching, emoji card vs. word card. Calls onDone() once every pair is found. */
+function LB_mountMemoryGame(el,items,onDone){
+ const cards=[];items.forEach((it,i)=>{cards.push({i,side:'emoji',val:it.emoji},{i,side:'word',val:it.word})});
+ const shuffled=LB_shuffle(cards);let first=null,lock=false,foundPairs=0;
+ el.innerHTML='<p class="muted" style="margin:0 0 14px;font-size:.92rem">Flip two cards to find a match.</p><div class="lb-game-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px"></div>';
+ const grid=el.querySelector('.lb-game-grid');
+ shuffled.forEach((c,idx)=>{
+  const b=document.createElement('button');b.className='btn btn-secondary';b.style.cssText='height:72px;font-size:1.3rem';b.textContent='?';b.dataset.idx=idx;
+  b.onclick=()=>{
+   if(lock||b.disabled||b===first)return;
+   b.textContent=c.val;b.classList.add('btn-primary');
+   if(first===null){first=b;first._c=c;return}
+   const second=b,sc=c;
+   if(first._c.i===sc.i){first.disabled=true;second.disabled=true;first.style.opacity=second.style.opacity='.45';first=null;foundPairs++;if(foundPairs>=items.length)onDone()}
+   else{lock=true;setTimeout(()=>{first.textContent='?';second.textContent='?';first.classList.remove('btn-primary');second.classList.remove('btn-primary');first=null;lock=false},700)}
+  };
+  grid.appendChild(b)})}
+/* Fill in the Blank: pulls real lines from the lesson's own conversation, blanks out a vocab
+   word that appears in them, student picks the right word from a small word bank. Not every
+   vocab word necessarily appears in the (short) conversation, so this builds however many real
+   rounds it can find and calls onDone() once every one of THOSE rounds is solved -- if none can
+   be built for a given lesson, it's skipped (onDone fires immediately) rather than stalling. */
+function LB_mountFillBlankGame(el,items,conversation,onDone){
+ const lines=(conversation||[]).map(([who,txt])=>txt);
+ const rounds=[];
+ items.forEach(it=>{const line=lines.find(l=>l.toLowerCase().includes(it.word.toLowerCase()));
+  if(line){const re=new RegExp(it.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
+   rounds.push({blanked:line.replace(re,'_____'),answer:it.word,options:LB_shuffle([it.word].concat(LB_shuffle(items.filter(x=>x!==it).map(x=>x.word)).slice(0,2)))})}});
+ if(!rounds.length){el.innerHTML='<p class="muted">Nothing to fill in for this lesson yet -- nice, you already know it all!</p>';onDone();return}
+ let solved=0;
+ el.innerHTML='<p class="muted" style="margin:0 0 14px;font-size:.92rem">Pick the word that completes the line.</p><div class="lb-game-fill" style="display:flex;flex-direction:column;gap:20px"></div>';
+ const box=el.querySelector('.lb-game-fill');
+ rounds.forEach(r=>{
+  const row=document.createElement('div');
+  row.innerHTML='<p style="font-family:var(--font-head,serif);margin:0 0 10px">'+r.blanked+'</p><div style="display:flex;flex-wrap:wrap;gap:8px"></div>';
+  const optsEl=row.querySelector('div');
+  r.options.forEach(o=>{const b=document.createElement('button');b.className='btn btn-secondary';b.textContent=o;
+   b.onclick=()=>{if(b.disabled)return;
+    if(o.toLowerCase()===r.answer.toLowerCase()){b.classList.add('btn-primary');[...optsEl.children].forEach(x=>x.disabled=true);solved++;if(solved>=rounds.length)onDone()}
+    else{b.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],{duration:260})}};
+   optsEl.appendChild(b)});
+  box.appendChild(row)})}
+/* Top-level entry point used by the lesson page: picks the right game(s) for this level, by tier
+   (explorer=1, builder=2, communicator=3, leader=4 -- see file header), and fires onAllDone()
+   once, after every required game for that tier is solved. The host page only needs
+   need[step]=1 and gate(step,0) as onAllDone, same as its simplest existing steps. */
+function LB_mountLessonGame(el,lesson,level,onAllDone){
+ const tier={explorer:1,builder:2,communicator:3,leader:4}[level]||1;
+ const items=LB_gameItems(lesson,tier>=4?8:tier>=2?6:4);
+ if(tier===1){el.innerHTML='<h2 style="margin-bottom:6px">Picture Match</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountMatchGame(box,items,onAllDone);return}
+ if(tier===2){el.innerHTML='<h2 style="margin-bottom:6px">Memory Flip</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountMemoryGame(box,items,onAllDone);return}
+ if(tier===3){el.innerHTML='<h2 style="margin-bottom:6px">Fill in the Blank</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone);return}
+ // leader: all three games back to back, hardest tier gets more items and no earlier-tier skip
+ el.innerHTML='<h2 style="margin-bottom:6px" id="lbGameTitle">Picture Match</h2><div id="lbGameBox"></div>';
+ const titleEl=el.querySelector('#lbGameTitle'),box=el.querySelector('#lbGameBox');
+ const stages=[
+  ()=>{titleEl.textContent='Picture Match (1 of 3)';LB_mountMatchGame(box,items,next)},
+  ()=>{titleEl.textContent='Memory Flip (2 of 3)';LB_mountMemoryGame(box,items,next)},
+  ()=>{titleEl.textContent='Fill in the Blank (3 of 3)';LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone)}
+ ];
+ let stage=0;function next(){stage++;if(stage<stages.length)stages[stage]()}
+ stages[0]()}
+
+/* ------------------------------------------------------------------
    ASK BRIDGE — a floating "ask a question" chat widget, available on
    every page that loads this file (lesson flow + dashboard). Calls the
    Cloudflare Worker's /api/ask-bridge endpoint (kid-safe system prompt,

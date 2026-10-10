@@ -177,7 +177,7 @@ function vocab(el,list,say){list.forEach(([w,hint,emoji])=>{const r=document.cre
  a.onclick=()=>bridgeSpeak(w,{mode:'pronunciation'});b.onclick=()=>tryWord(w,say,b);el.appendChild(r)})}
 function lines(arr){speakSeq(arr)}
 
-const need={5:2,7:1,8:3},got={};
+const need={5:2,7:1,8:3,9:1},got={};
 function gate(st,i){return()=>{(got[st]=got[st]||new Set()).add(i);upd()}}
 // Vocab, dialogue, and question content below all comes from advFor(s.level, n) (see
 // common.js). Explorer's content there is the original hand-written Chapter 1 sample; Builder,
@@ -214,6 +214,7 @@ const steps=[
   el.querySelector('#rd').onclick=()=>speak(txt);mountChoices(el.querySelector('#rq'),readQ,gate(7,0))},
  el=>{el.innerHTML='<h2 style="margin-bottom:14px">Match the words</h2><div id="m0" style="margin-bottom:24px"></div><div id="m1" style="margin-bottom:24px"></div><div id="m2"></div>';
   match.forEach((q,i)=>mountChoices(el.querySelector('#m'+i),q,gate(8,i)))},
+ el=>{LB_mountLessonGame(el,C,s.level,gate(9,0))},
  el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+(review?'Nice review!':"You're ready for the quiz!")+'</h2><p class="muted" style="margin:0 0 14px;line-height:1.6">'+C.readyLine+'</p><p class="muted" style="margin:0;line-height:1.6">'+(review?'Come back to any lesson whenever you like.':"Five short questions, and you'll earn your badge.")+'</p></div>'}
 ];
 const stage=document.getElementById('stage'),nx=document.getElementById('next'),bk=document.getElementById('back'),dots=document.getElementById('dots');
