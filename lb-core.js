@@ -251,13 +251,17 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       #askBridgeLog .ab-msg{border-radius:14px;padding:9px 12px;font-size:.88rem;line-height:1.4;max-width:88%;
         display:flex;align-items:flex-start;gap:6px}
       #askBridgeLog .ab-msg .ab-text{flex:1;white-space:pre-wrap}
-      #askBridgeLog .ab-listen{background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 2px;flex-shrink:0}
-      #askBridgeLog .ab-listen:hover{opacity:.7}
       #askBridgeLog .ab-q{background:#159FE8;color:#fff;align-self:flex-end}
       #askBridgeLog .ab-a{background:#fff;color:#0B3B6B;align-self:flex-start;border:1px solid #e3eef7}
       #askBridgeLog .ab-hint{color:#5b6a78;font-size:.8rem;text-align:center}
       #askBridgeForm{display:flex;gap:8px;padding:10px;border-top:1px solid #e3eef7}
       #askBridgeInput{flex:1;border:1px solid #cfe3f2;border-radius:10px;padding:8px 10px;font-family:inherit;font-size:.88rem}
+      #askBridgeMic{background:#F4FAFF;color:#0B3B6B;border:1px solid #cfe3f2;border-radius:10px;padding:8px 10px;
+        font-size:1rem;line-height:1;cursor:pointer;flex-shrink:0}
+      #askBridgeMic:hover{background:#e9f4fc}
+      #askBridgeMic.listening{background:#EAF7EF;border-color:#12864A;animation:abPulse 1.1s ease-in-out infinite}
+      #askBridgeMic:disabled{opacity:.5;cursor:default}
+      @keyframes abPulse{0%,100%{box-shadow:0 0 0 0 rgba(18,134,74,.35)}50%{box-shadow:0 0 0 7px rgba(18,134,74,0)}}
       #askBridgeSend{background:#12864A;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:600;cursor:pointer}
       #askBridgeSend:disabled{opacity:.6;cursor:default}
     `;
@@ -292,6 +296,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       '<div id="askBridgeHead"><span style="display:flex;align-items:center;gap:8px">' + BRIDGE_ICON_SVG + '<span>Ask Bridge</span></span><button id="askBridgeClose" type="button" aria-label="Close">✕</button></div>' +
       '<div id="askBridgeLog"><div class="ab-hint">Ask Bridge about a word, a sentence, or today’s lesson!</div></div>' +
       '<form id="askBridgeForm"><input id="askBridgeInput" type="text" maxlength="300" placeholder="Type your question…" autocomplete="off"/>' +
+      '<button id="askBridgeMic" type="button" aria-label="Speak your question">🎤</button>' +
       '<button id="askBridgeSend" type="submit">Send</button></form>';
 
     document.body.appendChild(btn);
@@ -300,6 +305,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     const log = panel.querySelector('#askBridgeLog');
     const form = panel.querySelector('#askBridgeForm');
     const input = panel.querySelector('#askBridgeInput');
+    const micBtn = panel.querySelector('#askBridgeMic');
     const sendBtn = panel.querySelector('#askBridgeSend');
 
     // Keeps Bridge's chat context within this page visit (resets on reload,
@@ -308,28 +314,42 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     const history = [];
     const MAX_HISTORY_TURNS = 10; // user+assistant messages kept, trimmed oldest-first
 
-    function addMsg(cls, text, opts) {
-      opts = opts || {};
+    function addMsg(cls, text) {
       const div = document.createElement('div');
       div.className = 'ab-msg ' + cls;
       const textSpan = document.createElement('span');
       textSpan.className = 'ab-text';
       textSpan.textContent = text;
       div.appendChild(textSpan);
-      if (opts.speakable) {
-        const listenBtn = document.createElement('button');
-        listenBtn.type = 'button';
-        listenBtn.className = 'ab-listen';
-        listenBtn.setAttribute('aria-label', 'Listen to this answer');
-        listenBtn.textContent = '🔊';
-        listenBtn.addEventListener('click', () => {
-          try { bridgeSpeak(text, { mode: 'conversational' }); } catch (e) {}
-        });
-        div.appendChild(listenBtn);
-      }
       log.appendChild(div);
       log.scrollTop = log.scrollHeight;
       return div;
+    }
+
+    // Lets a kid speak their question instead of typing it — fills the
+    // input so they can glance it over (or add more) before hitting Send,
+    // rather than auto-sending straight from speech. Bridge itself never
+    // speaks its answers back; this mic is one-way, for the kid's input only.
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      micBtn.disabled = true;
+      micBtn.title = "Your device can't listen for speech right now — you can still type your question!";
+    } else {
+      micBtn.addEventListener('click', () => {
+        const rec = new SR();
+        rec.lang = 'en-US';
+        micBtn.classList.add('listening');
+        const stop = () => micBtn.classList.remove('listening');
+        rec.onresult = (e) => {
+          stop();
+          const said = e.results[0][0].transcript;
+          input.value = input.value ? input.value + ' ' + said : said;
+          input.focus();
+        };
+        rec.onerror = stop;
+        rec.onend = stop;
+        try { rec.start(); } catch (e) { stop(); }
+      });
     }
 
     btn.addEventListener('click', () => {
@@ -347,6 +367,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       addMsg('ab-q', q);
       input.value = '';
       input.disabled = true;
+      micBtn.disabled = true;
       sendBtn.disabled = true;
       const thinking = document.createElement('div');
       thinking.className = 'ab-msg ab-a';
@@ -374,7 +395,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
         const data = await res.json().catch(() => ({}));
         thinking.remove();
         if (res.ok && data.answer) {
-          addMsg('ab-a', data.answer, { speakable: true });
+          addMsg('ab-a', data.answer);
           history.push({ role: 'user', content: q });
           history.push({ role: 'assistant', content: data.answer });
           while (history.length > MAX_HISTORY_TURNS) history.shift();
@@ -386,6 +407,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
         addMsg('ab-a', "Bridge couldn't connect right now. Please try again in a moment!");
       } finally {
         input.disabled = false;
+        if (SR) micBtn.disabled = false;
         sendBtn.disabled = false;
         input.focus();
       }
