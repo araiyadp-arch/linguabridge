@@ -58,8 +58,8 @@ const BRIDGE_VOICE_CONFIG={
                           // do that and override LB.get().voice if bella isn't actually the best-sounding one.
  language:'en-US',
  volume:0.92,
- rate:{conversational:0.85,pronunciation:0.80},           // slowed down (was 0.95) so Bridge's narration/reading is easier for young learners to follow; pronunciation stays slower without ever sounding robotic
- pitch:1.0,                                                // placeholder: Kokoro exposes no pitch control today
+ rate:{conversational:0.82,pronunciation:0.80},           // slowed down (was 0.95, then 0.85) so Bridge's narration/reading is easier for young learners to follow and sounds calmer, not rushed; pronunciation stays slower without ever sounding robotic
+ pitch:1.08,                                               // nudged up from the flat 1.0 default so the fallback device voice reads softer/friendlier and less deep or scary for young kids (Kokoro's own recorded clips aren't affected by this -- it only applies to the browser fallback voice used for dynamic text like Ask Bridge answers)
  style:{conversational:'warm',pronunciation:'clear'},      // placeholder: no style/emotion control in the current engine
  pronunciationMode:{extraClear:true,deliberate:true}
 };
@@ -316,24 +316,28 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     const history = [];
     const MAX_HISTORY_TURNS = 10; // user+assistant messages kept, trimmed oldest-first
 
-    function addMsg(cls, text, opts) {
-      opts = opts || {};
+    // Everything Bridge itself says (answers, errors, instructions) is read
+    // out loud automatically as it appears — not just available on tap —
+    // since younger kids on this app may not read fluently yet. The 🔊
+    // button stays too, so a kid can replay a line without retyping.
+    function addMsg(cls, text) {
       const div = document.createElement('div');
       div.className = 'ab-msg ' + cls;
       const textSpan = document.createElement('span');
       textSpan.className = 'ab-text';
       textSpan.textContent = text;
       div.appendChild(textSpan);
-      if (opts.speakable) {
+      if (cls === 'ab-a') {
         const listenBtn = document.createElement('button');
         listenBtn.type = 'button';
         listenBtn.className = 'ab-listen';
-        listenBtn.setAttribute('aria-label', 'Listen to this answer');
+        listenBtn.setAttribute('aria-label', 'Listen to this again');
         listenBtn.textContent = '🔊';
         listenBtn.addEventListener('click', () => {
           try { bridgeSpeak(text, { mode: 'conversational' }); } catch (e) {}
         });
         div.appendChild(listenBtn);
+        try { bridgeSpeak(text, { mode: 'conversational' }); } catch (e) {}
       }
       log.appendChild(div);
       log.scrollTop = log.scrollHeight;
@@ -365,9 +369,17 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       });
     }
 
+    const HINT_TEXT = 'Ask Bridge about a word, a sentence, or today’s lesson!';
+    let hintSpoken = false;
     btn.addEventListener('click', () => {
       panel.classList.toggle('open');
-      if (panel.classList.contains('open')) input.focus();
+      if (panel.classList.contains('open')) {
+        input.focus();
+        if (!hintSpoken) {
+          hintSpoken = true;
+          try { bridgeSpeak(HINT_TEXT, { mode: 'conversational' }); } catch (e) {}
+        }
+      }
     });
     panel.querySelector('#askBridgeClose').addEventListener('click', () => {
       panel.classList.remove('open');
@@ -408,7 +420,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
         const data = await res.json().catch(() => ({}));
         thinking.remove();
         if (res.ok && data.answer) {
-          addMsg('ab-a', data.answer, { speakable: true });
+          addMsg('ab-a', data.answer);
           history.push({ role: 'user', content: q });
           history.push({ role: 'assistant', content: data.answer });
           while (history.length > MAX_HISTORY_TURNS) history.shift();
