@@ -250,7 +250,7 @@ async function handleLogout(request, env) {
 // which also uses the simpler { response } output format.
 const ASK_BRIDGE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 const ASK_BRIDGE_MAX_QUESTION_LEN = 300;
-const ASK_BRIDGE_DAILY_LIMIT = 40; // per visitor (by IP), resets daily
+const ASK_BRIDGE_DAILY_LIMIT = 300; // per visitor (by IP), resets daily — high enough to not interrupt normal use/testing, still a backstop against runaway AI costs from one visitor
 
 // This system prompt is the actual safety boundary for this feature (see
 // the big comment above). The founder asked for Bridge to answer general
