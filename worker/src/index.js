@@ -243,8 +243,12 @@ async function handleLogout(request, env) {
 // ------------------------------------------------------------------
 
 // NOTE: @cf/meta/llama-3.1-8b-instruct was deprecated by Cloudflare on
-// 2026-05-30. Using a currently-supported chat/instruct model instead.
-const ASK_BRIDGE_MODEL = "@cf/zai-org/glm-4.7-flash";
+// 2026-05-30. @cf/zai-org/glm-4.7-flash was tried next, but it's a
+// "reasoning" model with no way to turn that off — it was spending the
+// whole token budget on hidden reasoning and returning an empty answer.
+// kimi-k2.6 supports reasoning_effort: "none", so it answers directly and
+// quickly, which is what a short kid-typed question like "hi" needs.
+const ASK_BRIDGE_MODEL = "@cf/moonshotai/kimi-k2.6";
 const ASK_BRIDGE_MAX_QUESTION_LEN = 300;
 const ASK_BRIDGE_DAILY_LIMIT = 40; // per visitor (by IP), resets daily
 
@@ -319,6 +323,7 @@ async function handleAskBridge(request, env) {
         { role: "user", content: userPrompt },
       ],
       max_completion_tokens: 220,
+      reasoning_effort: "none",
     });
 
     // Different Workers AI models shape their output differently: older
