@@ -242,7 +242,9 @@ async function handleLogout(request, env) {
 // Ask Bridge — a kid-safe Q&A chat, answered by Cloudflare Workers AI.
 // ------------------------------------------------------------------
 
-const ASK_BRIDGE_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+// NOTE: @cf/meta/llama-3.1-8b-instruct was deprecated by Cloudflare on
+// 2026-05-30. Using a currently-supported chat/instruct model instead.
+const ASK_BRIDGE_MODEL = "@cf/zai-org/glm-4.7-flash";
 const ASK_BRIDGE_MAX_QUESTION_LEN = 300;
 const ASK_BRIDGE_DAILY_LIMIT = 40; // per visitor (by IP), resets daily
 
@@ -316,7 +318,7 @@ async function handleAskBridge(request, env) {
         { role: "system", content: ASK_BRIDGE_SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 220,
+      max_completion_tokens: 220,
     });
 
     answer = (aiResult && aiResult.response ? aiResult.response : "").trim();
@@ -325,6 +327,10 @@ async function handleAskBridge(request, env) {
         "Hmm, I'm not sure how to answer that one. Can you try asking a different way, or ask your teacher?";
     }
   } catch (e) {
+    // Log the real error so it shows up in the Cloudflare dashboard's
+    // Observability/Logs view (Message column) instead of being invisible —
+    // the response to the student stays generic/kid-safe either way.
+    console.error("Ask Bridge AI call failed:", e && e.message ? e.message : e);
     return jsonResponse(
       { error: "Bridge couldn't think of an answer right now. Please try again in a moment." },
       502,
