@@ -248,7 +248,11 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
       #askBridgeHead span{font-weight:700}
       #askBridgeClose{background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;line-height:1}
       #askBridgeLog{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:#F4FAFF}
-      #askBridgeLog .ab-msg{border-radius:14px;padding:9px 12px;font-size:.88rem;line-height:1.4;max-width:88%}
+      #askBridgeLog .ab-msg{border-radius:14px;padding:9px 12px;font-size:.88rem;line-height:1.4;max-width:88%;
+        display:flex;align-items:flex-start;gap:6px}
+      #askBridgeLog .ab-msg .ab-text{flex:1;white-space:pre-wrap}
+      #askBridgeLog .ab-listen{background:none;border:none;cursor:pointer;font-size:1rem;line-height:1;padding:0 0 0 2px;flex-shrink:0}
+      #askBridgeLog .ab-listen:hover{opacity:.7}
       #askBridgeLog .ab-q{background:#159FE8;color:#fff;align-self:flex-end}
       #askBridgeLog .ab-a{background:#fff;color:#0B3B6B;align-self:flex-start;border:1px solid #e3eef7}
       #askBridgeLog .ab-hint{color:#5b6a78;font-size:.8rem;text-align:center}
@@ -262,16 +266,30 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     document.head.appendChild(style);
   }
 
+  // The same bridge-arch mascot used site-wide, simplified into a small
+  // round badge (own white background circle so it reads clearly on both
+  // the blue floating button and the navy panel header).
+  const BRIDGE_ICON_SVG =
+    '<svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="flex-shrink:0;display:block">' +
+    '<circle cx="50" cy="50" r="48" fill="#ffffff"/>' +
+    '<path d="M12 66 Q50 22 88 66" stroke="#159FE8" stroke-width="15" stroke-linecap="round" fill="none"/>' +
+    '<circle cx="42" cy="42" r="5.5" fill="#0B3B6B"/>' +
+    '<circle cx="58" cy="42" r="5.5" fill="#0B3B6B"/>' +
+    '<circle cx="43.6" cy="40.4" r="1.5" fill="#ffffff"/>' +
+    '<circle cx="59.6" cy="40.4" r="1.5" fill="#ffffff"/>' +
+    '<path d="M43 50 Q50 56 57 50" stroke="#0B3B6B" stroke-width="3.2" stroke-linecap="round" fill="none"/>' +
+    '</svg>';
+
   function buildWidget() {
     const btn = document.createElement('button');
     btn.id = 'askBridgeBtn';
     btn.type = 'button';
-    btn.innerHTML = '🤖 Ask Bridge';
+    btn.innerHTML = BRIDGE_ICON_SVG + '<span>Ask Bridge</span>';
 
     const panel = document.createElement('div');
     panel.id = 'askBridgePanel';
     panel.innerHTML =
-      '<div id="askBridgeHead"><span>🤖 Ask Bridge</span><button id="askBridgeClose" type="button" aria-label="Close">✕</button></div>' +
+      '<div id="askBridgeHead"><span style="display:flex;align-items:center;gap:8px">' + BRIDGE_ICON_SVG + '<span>Ask Bridge</span></span><button id="askBridgeClose" type="button" aria-label="Close">✕</button></div>' +
       '<div id="askBridgeLog"><div class="ab-hint">Ask Bridge about a word, a sentence, or today’s lesson!</div></div>' +
       '<form id="askBridgeForm"><input id="askBridgeInput" type="text" maxlength="300" placeholder="Type your question…" autocomplete="off"/>' +
       '<button id="askBridgeSend" type="submit">Send</button></form>';
@@ -284,12 +302,34 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     const input = panel.querySelector('#askBridgeInput');
     const sendBtn = panel.querySelector('#askBridgeSend');
 
-    function addMsg(cls, text) {
+    // Keeps Bridge's chat context within this page visit (resets on reload,
+    // same as this conversation would) so follow-ups like "say that again
+    // with easier words" actually have something to refer back to.
+    const history = [];
+    const MAX_HISTORY_TURNS = 10; // user+assistant messages kept, trimmed oldest-first
+
+    function addMsg(cls, text, opts) {
+      opts = opts || {};
       const div = document.createElement('div');
       div.className = 'ab-msg ' + cls;
-      div.textContent = text;
+      const textSpan = document.createElement('span');
+      textSpan.className = 'ab-text';
+      textSpan.textContent = text;
+      div.appendChild(textSpan);
+      if (opts.speakable) {
+        const listenBtn = document.createElement('button');
+        listenBtn.type = 'button';
+        listenBtn.className = 'ab-listen';
+        listenBtn.setAttribute('aria-label', 'Listen to this answer');
+        listenBtn.textContent = '🔊';
+        listenBtn.addEventListener('click', () => {
+          try { bridgeSpeak(text, { mode: 'conversational' }); } catch (e) {}
+        });
+        div.appendChild(listenBtn);
+      }
       log.appendChild(div);
       log.scrollTop = log.scrollHeight;
+      return div;
     }
 
     btn.addEventListener('click', () => {
@@ -329,12 +369,15 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, level: levelCtx, lessonTopic: topicCtx }),
+          body: JSON.stringify({ question: q, level: levelCtx, lessonTopic: topicCtx, history }),
         });
         const data = await res.json().catch(() => ({}));
         thinking.remove();
         if (res.ok && data.answer) {
-          addMsg('ab-a', data.answer);
+          addMsg('ab-a', data.answer, { speakable: true });
+          history.push({ role: 'user', content: q });
+          history.push({ role: 'assistant', content: data.answer });
+          while (history.length > MAX_HISTORY_TURNS) history.shift();
         } else {
           addMsg('ab-a', (data && data.error) || "Bridge couldn't answer that right now. Please try again!");
         }

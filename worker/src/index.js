@@ -277,6 +277,29 @@ function clientKey(request) {
   return request.headers.get("CF-Connecting-IP") || "unknown";
 }
 
+// The frontend keeps a short rolling log of the conversation so Bridge can
+// handle follow-ups like "rewrite that" or "say it simpler" instead of
+// treating every question as a fresh one with no context. Never trust it
+// blindly though — validate shape/role/length before it goes anywhere near
+// the model, same as any other user-supplied input.
+const ASK_BRIDGE_MAX_HISTORY_TURNS = 10;
+const ASK_BRIDGE_MAX_HISTORY_CHARS = 500;
+
+function sanitizeHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  const cleaned = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const role = item.role === "user" || item.role === "assistant" ? item.role : null;
+    if (!role) continue;
+    const content = (item.content || "").toString().trim().slice(0, ASK_BRIDGE_MAX_HISTORY_CHARS);
+    if (!content) continue;
+    cleaned.push({ role, content });
+  }
+  // Keep only the most recent turns so the prompt doesn't grow unbounded.
+  return cleaned.slice(-ASK_BRIDGE_MAX_HISTORY_TURNS);
+}
+
 async function handleAskBridge(request, env) {
   let body;
   try {
@@ -288,6 +311,7 @@ async function handleAskBridge(request, env) {
   const question = (body.question || "").toString().trim();
   const level = (body.level || "").toString().slice(0, 40);
   const lessonTopic = (body.lessonTopic || "").toString().slice(0, 80);
+  const history = sanitizeHistory(body.history);
 
   if (!question) {
     return jsonResponse({ error: "Please type a question first." }, 400, request);
@@ -325,6 +349,7 @@ async function handleAskBridge(request, env) {
     const aiResult = await env.AI.run(ASK_BRIDGE_MODEL, {
       messages: [
         { role: "system", content: ASK_BRIDGE_SYSTEM_PROMPT },
+        ...history,
         { role: "user", content: userPrompt },
       ],
       max_tokens: 300,
