@@ -61,9 +61,18 @@ const BRIDGE_VOICE_CONFIG={
                           // best-sounding default once heard.
  language:'en-US',
  volume:0.92,
- rate:{conversational:0.82,pronunciation:0.80},           // slowed down (was 0.95, then 0.85) so Bridge's narration/reading is easier for young learners to follow and sounds calmer, not rushed; pronunciation stays slower without ever sounding robotic
- pitch:1.08,                                               // nudged up from the flat 1.0 default so the fallback device voice reads softer/friendlier and less deep or scary for young kids (Kokoro's own recorded clips aren't affected by this -- it only applies to the browser fallback voice used for dynamic text like Ask Bridge answers)
- style:{conversational:'warm',pronunciation:'clear'},      // placeholder: no style/emotion control in the current engine
+ // Rate had been slowed down repeatedly this session (0.95 -> 0.85 -> 0.82)
+ // to make narration easier to follow -- but the founder heard that as
+ // lazy/sluggish, not calm, and asked for something peppier, closer to a
+ // kids'-song/nursery-rhyme energy. Pushed back up past the original 0.95
+ // baseline. This affects playbackRate on the actual recorded Sky/Bella/
+ // Sarah clips too, not just the fallback voice, so it's the one lever
+ // here that really changes how lively the real site narration sounds.
+ // Pronunciation mode stays a little slower than conversational so a word
+ // being taught is still clear, but it's livelier than it was too.
+ rate:{conversational:1.08,pronunciation:0.95},
+ pitch:1.18,                                               // raised further for a brighter, more animated read -- only affects the browser fallback voice (used when a clip is missing, e.g. dynamic text), since Kokoro's recorded clips have no pitch control
+ style:{conversational:'bright',pronunciation:'clear'},    // placeholder: no style/emotion control in the current engine
  pronunciationMode:{extraClear:true,deliberate:true}
 };
 const VOICE={ // kept only for the browser-fallback voice PICK; rate now always comes from BRIDGE_VOICE_CONFIG
