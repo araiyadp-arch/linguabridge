@@ -137,6 +137,13 @@ details.proto .btn{padding:8px 18px;font-size:.88rem}
     <button type="button" class="btn btn-secondary" data-voice="daniel">&#9654; Daniel (friendly guy &mdash; device voice)</button>
   </div>
 </div>
+<div id="founderLessonBrowser" class="card" style="display:none; margin-bottom:26px; padding:22px 26px;">
+  <span class="placeholder-badge">Founder tool — not shown to students</span>
+  <h3 style="margin:12px 0 6px; font-family:var(--font-head); color:var(--navy);">Browse every lesson, every level</h3>
+  <p class="muted" style="margin:0 0 16px;">Opens any lesson in review mode — nothing here touches progress, badges, or the daily lock. Pick a level, then a lesson.</p>
+  <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;" id="flbLevelTabs"></div>
+  <div id="flbLessons" style="display:flex; flex-direction:column; gap:14px;"></div>
+</div>
 <div class="bridge-row"><svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <ellipse cx="210" cy="262" rx="170" ry="26" fill="#159FE8" opacity="0.12"/>
         <rect x="4" y="248" width="66" height="18" rx="7" fill="#0B3B6B"/>
@@ -289,6 +296,55 @@ if (window.LB_AUTH_PROMISE) {
             bridgeSpeak('Hello', { mode: 'conversational' });
           });
         });
+      }
+      // Founder-only lesson browser: every level, every authored lesson, as a
+      // review link (?review=n) -- review mode already skips the lock and the
+      // advCount gate and never touches progress/badges (see lesson.html /
+      // lesson-quiz.html). Clicking a lesson switches s.level to that lesson's
+      // level first, same as the existing level <select> does, so the lesson
+      // page's own s.level-based lookups resolve to the right content.
+      var browser = document.getElementById('founderLessonBrowser');
+      if (browser) {
+        browser.style.display = 'block';
+        var tabs = document.getElementById('flbLevelTabs');
+        var list = document.getElementById('flbLessons');
+        var levelKeys = Object.keys(LEVELS);
+        function renderLevel(levelKey) {
+          list.innerHTML = '';
+          var total = advCount(levelKey);
+          for (var n = 1; n <= total; n++) {
+            var topic = advFor(levelKey, n).topic || {};
+            var ch = chapterFor(levelKey, n);
+            var row = document.createElement('a');
+            row.className = 'btn btn-secondary';
+            row.style.textAlign = 'left';
+            row.href = '#';
+            row.textContent = (topic.icon || '') + ' Ch ' + (ch.index + 1) + ': ' + ch.name + ' — Lesson ' + n + ': ' + (topic.name || '(untitled)');
+            row.addEventListener('click', function (lvl, lessonN) {
+              return function (e) {
+                e.preventDefault();
+                var s2 = LB.get();
+                s2.level = lvl;
+                LB.set(s2);
+                window.location.href = 'linguabridge-lesson.html?review=' + lessonN;
+              };
+            }(levelKey, n));
+            list.appendChild(row);
+          }
+        }
+        levelKeys.forEach(function (lvl, idx) {
+          var tabBtn = document.createElement('button');
+          tabBtn.type = 'button';
+          tabBtn.className = idx === 0 ? 'btn btn-primary' : 'btn btn-secondary';
+          tabBtn.textContent = (LEVELS[lvl].emoji || '') + ' ' + LEVELS[lvl].name + ' (' + advCount(lvl) + ')';
+          tabBtn.addEventListener('click', function () {
+            tabs.querySelectorAll('button').forEach(function (b) { b.className = 'btn btn-secondary'; });
+            tabBtn.className = 'btn btn-primary';
+            renderLevel(lvl);
+          });
+          tabs.appendChild(tabBtn);
+        });
+        renderLevel(levelKeys[0]);
       }
     }
   });
