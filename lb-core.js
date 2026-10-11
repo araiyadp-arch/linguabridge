@@ -72,7 +72,9 @@ const BRIDGE_VOICE_CONFIG={
  // together these noticeably shift the recorded Sky/Bella/Sarah clips
  // younger-sounding, not just faster. Pronunciation mode stays a little
  // gentler than conversational so a word being taught is still clear.
- rate:{conversational:1.15,pronunciation:1.0},
+ rate:{conversational:1.15,pronunciation:0.86}, // founder reported Listen/Speak on lesson pages sounding rushed (2026-10-11) --
+ // Sky's own recorded pace runs brisk even in its dedicated pron clips, so pronunciation-mode now plays
+ // noticeably slower than the raw recording (not just "not sped up" at 1.0) so a word being taught stays clear.
  pitch:1.22,                                               // raised further for a brighter, younger-sounding read -- only directly controls the browser fallback voice (used when a clip is missing, e.g. dynamic text); recorded clips get their pitch shift from rate + preservesPitch instead, since Kokoro itself exposes no pitch control
  style:{conversational:'bright',pronunciation:'clear'},    // placeholder: no style/emotion control in the current engine
  pronunciationMode:{extraClear:true,deliberate:true}
