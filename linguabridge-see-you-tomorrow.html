@@ -128,4 +128,12 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
+<script>
+// SEE-YOU-TOMORROW RENDERER — tells the student whether today's lesson
+// locked the next one (comes back tomorrow) or whether they can keep
+// going right away. Restored 2026-10-30: lost in the same
+// translator-removal regression described in 150b41d.
+document.getElementById('txt').textContent=LB.LOCK?"Your progress is saved. Your next lesson opens tomorrow. If you miss a day, that's okay. Your progress stays right where you left it.":"Your progress is saved. Come back tomorrow for more, or keep going whenever you're ready. Your progress stays right where you left it.";
+</script>
+
 </body></html>
