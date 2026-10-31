@@ -108,4 +108,24 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
+<script>
+// LESSON QUIZ RENDERER — walks the 5-question quiz for this adventure,
+// using the shared mountChoices() helper, then routes to the badge page
+// (or back to the dashboard in review mode). Restored 2026-10-30: lost in
+// the same translator-removal regression described in 150b41d.
+const s=LB.get(),p=new URLSearchParams(location.search),review=p.get('review'),n=review?+review:(+p.get('n')||s.completed.filter(c=>c.level===s.level).length+1);
+if(!review&&((LB.LOCK&&LB.doneToday(s)&&!LB.isFounder())||n>advCount(s.level)))location.replace('linguabridge-dashboard.html');
+const C=advFor(s.level,n);
+const Q=C.quiz;
+let i=0;const box=document.getElementById('qbox'),nx=document.getElementById('next'),dots=document.getElementById('dots');
+Q.forEach(()=>dots.appendChild(document.createElement('span')));
+function show(){document.getElementById('qcount').textContent='Question '+(i+1)+' of '+Q.length;
+ [...dots.children].forEach((d,k)=>d.classList.toggle('on',k<=i));
+ nx.disabled=true;nx.textContent=i===Q.length-1?'See my badge':'Next question';
+ mountChoices(box,Q[i],()=>{nx.disabled=false;nx.focus()});window.scrollTo({top:0})}
+nx.onclick=()=>{if(i<Q.length-1){i++;show()}else if(review){location.href='linguabridge-dashboard.html'}else{const st=LB.get();st.justPassed=n;LB.set(st);location.href='linguabridge-badge.html'}};
+show();
+
+</script>
+
 </body></html>
