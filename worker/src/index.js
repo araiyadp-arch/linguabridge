@@ -2,9 +2,13 @@
  * LinguaBridge Auth API (Cloudflare Worker)
  * ------------------------------------------------------------------
  * Real backend authentication, replacing the old client-side placeholder
- * lock. Currently scoped to the founder account only — public/student
- * accounts are intentionally NOT implemented yet (credential type for
- * students has not been decided: email, username, or school+student code).
+ * lock. As of 2026-10-30: public signup is open. A parent creates an
+ * account with a real email+password; a parent can then create one or
+ * more child logins (username + PIN, no email) under their account. Both
+ * parent and child accounts are just rows in the `users` table
+ * (role='parent'/'student', `parent_id` set on children, `email` set on
+ * parents only) so the existing login/me/logout code below needed no
+ * changes to support either kind of account.
  *
  * Runs on its own subdomain (api.lingua-bridge.us) so the main site's
  * existing GitHub Pages DNS is never touched. Cross-origin calls from
@@ -14,6 +18,16 @@
  *   POST /api/login       { username, password } -> sets httpOnly session cookie
  *   GET  /api/me                                  -> { authenticated, username, role }
  *   POST /api/logout                              -> clears session cookie
+ *   POST /api/signup      { email, password } -> creates a PARENT account,
+ *        sets session cookie. Parents sign up with a real email+password;
+ *        kids never do (see /api/children below) — this keeps the site's
+ *        direct collection of personal info from children to a minimum
+ *        (COPPA consideration, 2026-10-30).
+ *   GET  /api/children                          -> list of the signed-in
+ *        parent's children ({id, username, created_at} only — no hash/salt)
+ *   POST /api/children    { username, pin } -> creates a CHILD login under
+ *        the signed-in parent (no email collected from the child at all).
+ *        Both require a valid parent session cookie.
  *   POST /api/ask-bridge  { question, level?, lessonTopic? } -> { answer }
  *        "Ask Bridge" — lets a student type a question to Bridge and get a
  *        real answer, using Cloudflare Workers AI (no external API key
@@ -119,6 +133,232 @@ async function verifyPassword(password, saltHex, iterations, expectedHashHex) {
     diff |= derivedHex.charCodeAt(i) ^ expectedHashHex.charCodeAt(i);
   }
   return diff === 0;
+}
+
+// Same PBKDF2 parameters as verifyPassword above (SHA-256, dklen=32 bytes,
+// 100000 iterations — matches the founder account already in D1), used for
+// both parent passwords and child PINs: a PIN is just stored and checked
+// exactly like a password, reusing the existing login code path unchanged.
+const HASH_ITERATIONS = 100000;
+
+async function hashPassword(password) {
+  const enc = new TextEncoder();
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: saltBytes,
+      iterations: HASH_ITERATIONS,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    32 * 8
+  );
+  return {
+    hash: bytesToHex(new Uint8Array(derivedBits)),
+    salt: bytesToHex(saltBytes),
+    iterations: HASH_ITERATIONS,
+  };
+}
+
+function setSessionCookieHeaders(token) {
+  return {
+    "Set-Cookie": [
+      `${SESSION_COOKIE}=${token}`,
+      "Path=/",
+      "HttpOnly",
+      "Secure",
+      "SameSite=None",
+      `Max-Age=${SESSION_DAYS * 24 * 60 * 60}`,
+    ].join("; "),
+  };
+}
+
+async function createSession(env, userId) {
+  const token = crypto.randomUUID() + crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  await env.DB.prepare(
+    "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)"
+  )
+    .bind(token, userId, expiresAt.toISOString())
+    .run();
+  return token;
+}
+
+// Looks up the signed-in user for this request (via the session cookie),
+// or null if there isn't a valid one. Shared by the /api/children endpoints
+// so they can require a real parent session before touching child accounts.
+async function getSessionUser(request, env) {
+  const token = getCookie(request, SESSION_COOKIE);
+  if (!token) return null;
+  const row = await env.DB.prepare(
+    `SELECT users.id as id, users.username as username, users.role as role, sessions.expires_at as expires_at
+     FROM sessions JOIN users ON users.id = sessions.user_id
+     WHERE sessions.token = ?`
+  )
+    .bind(token)
+    .first();
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    await env.DB.prepare("DELETE FROM sessions WHERE token = ?").bind(token).run();
+    return null;
+  }
+  return row;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Kid-chosen usernames: letters/numbers only, 3-20 chars, so they're easy
+// for a young child to type and never look like an email address.
+const CHILD_USERNAME_RE = /^[a-zA-Z0-9]{3,20}$/;
+// PIN, not a password: numeric only, 4-6 digits — quick for a young child
+// to enter, stored/verified exactly like a password hash underneath.
+const CHILD_PIN_RE = /^[0-9]{4,6}$/;
+
+async function handleSignup(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: "Invalid request body." }, 400, request);
+  }
+
+  const email = (body.email || "").toString().trim().toLowerCase();
+  const password = (body.password || "").toString();
+
+  if (!email || !EMAIL_RE.test(email)) {
+    return jsonResponse({ error: "Please enter a valid email address." }, 400, request);
+  }
+  if (password.length < 8) {
+    return jsonResponse(
+      { error: "Password must be at least 8 characters." },
+      400,
+      request
+    );
+  }
+
+  const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
+    .bind(email)
+    .first();
+  if (existing) {
+    return jsonResponse(
+      { error: "An account with that email already exists. Try logging in instead." },
+      409,
+      request
+    );
+  }
+
+  const { hash, salt, iterations } = await hashPassword(password);
+  const id = "usr_" + crypto.randomUUID();
+
+  try {
+    await env.DB.prepare(
+      `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id)
+       VALUES (?, ?, ?, ?, ?, 'parent', ?, NULL)`
+    )
+      .bind(id, email, hash, salt, iterations, email)
+      .run();
+  } catch (e) {
+    // Most likely the UNIQUE index on username/email caught a race with
+    // another signup for the same email between the check above and here.
+    return jsonResponse(
+      { error: "An account with that email already exists. Try logging in instead." },
+      409,
+      request
+    );
+  }
+
+  const token = await createSession(env, id);
+  return jsonResponse(
+    { authenticated: true, username: email, role: "parent" },
+    200,
+    request,
+    setSessionCookieHeaders(token)
+  );
+}
+
+async function handleListChildren(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser || sessionUser.role !== "parent") {
+    return jsonResponse({ error: "You must be logged in as a parent." }, 401, request);
+  }
+
+  const result = await env.DB.prepare(
+    "SELECT id, username, created_at FROM users WHERE parent_id = ? ORDER BY created_at ASC"
+  )
+    .bind(sessionUser.id)
+    .all();
+
+  return jsonResponse({ children: result.results || [] }, 200, request);
+}
+
+async function handleCreateChild(request, env) {
+  const sessionUser = await getSessionUser(request, env);
+  if (!sessionUser || sessionUser.role !== "parent") {
+    return jsonResponse({ error: "You must be logged in as a parent." }, 401, request);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: "Invalid request body." }, 400, request);
+  }
+
+  const username = (body.username || "").toString().trim();
+  const pin = (body.pin || "").toString();
+
+  if (!username || !CHILD_USERNAME_RE.test(username)) {
+    return jsonResponse(
+      { error: "Username must be 3-20 letters or numbers, no spaces or symbols." },
+      400,
+      request
+    );
+  }
+  if (!pin || !CHILD_PIN_RE.test(pin)) {
+    return jsonResponse(
+      { error: "PIN must be 4 to 6 numbers." },
+      400,
+      request
+    );
+  }
+
+  const existing = await env.DB.prepare("SELECT id FROM users WHERE username = ?")
+    .bind(username)
+    .first();
+  if (existing) {
+    return jsonResponse(
+      { error: "That username is already taken. Try another one." },
+      409,
+      request
+    );
+  }
+
+  const { hash, salt, iterations } = await hashPassword(pin);
+  const id = "usr_" + crypto.randomUUID();
+
+  try {
+    await env.DB.prepare(
+      `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id)
+       VALUES (?, ?, ?, ?, ?, 'student', NULL, ?)`
+    )
+      .bind(id, username, hash, salt, iterations, sessionUser.id)
+      .run();
+  } catch (e) {
+    return jsonResponse(
+      { error: "That username is already taken. Try another one." },
+      409,
+      request
+    );
+  }
+
+  return jsonResponse({ id, username, created_at: new Date().toISOString() }, 200, request);
 }
 
 async function handleLogin(request, env) {
@@ -613,6 +853,15 @@ export default {
     }
     if (url.pathname === "/api/logout" && request.method === "POST") {
       return handleLogout(request, env);
+    }
+    if (url.pathname === "/api/signup" && request.method === "POST") {
+      return handleSignup(request, env);
+    }
+    if (url.pathname === "/api/children" && request.method === "GET") {
+      return handleListChildren(request, env);
+    }
+    if (url.pathname === "/api/children" && request.method === "POST") {
+      return handleCreateChild(request, env);
     }
     if (url.pathname === "/api/ask-bridge" && request.method === "POST") {
       return handleAskBridge(request, env);
