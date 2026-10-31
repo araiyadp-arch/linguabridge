@@ -128,4 +128,113 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
+<script>
+// LESSON RENDERER — reads progress/review-mode state and walks the student
+// through this lesson's steps (vocab, conversation, listening, roleplay,
+// reading, matching, mini-game, ready screen). Restored 2026-10-30: this
+// code was accidentally deleted when the translator feature was removed
+// (both lived in the same <script> tag and the translator-removal regex
+// swept up everything through the end of that tag). Text here is now
+// plain English directly -- the translator is gone.
+const s=LB.get(),L=LEVELS[s.level]||LEVELS.explorer,p=new URLSearchParams(location.search),review=p.get('review');
+const n=review?+review:s.completed.filter(c=>c.level===s.level).length+1;
+if(!review&&((LB.LOCK&&LB.doneToday(s)&&!LB.isFounder())||n>advCount(s.level)))location.replace('linguabridge-dashboard.html');
+const C=advFor(s.level,n);
+document.getElementById('crumb').textContent=L.emoji+' '+L.name+' · Chapter '+(chapterFor(s.level,n).index+1)+': '+chapterFor(s.level,n).name+' · Lesson '+n;
+if(review)document.getElementById('reviewBanner').innerHTML='<div class="review-banner">Review mode: nothing here changes your progress or badges.</div>';
+const bridgeSvg=`<svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <ellipse cx="210" cy="262" rx="170" ry="26" fill="#159FE8" opacity="0.12"/>
+        <rect x="4" y="248" width="66" height="18" rx="7" fill="#0B3B6B"/>
+        <rect x="350" y="248" width="66" height="18" rx="7" fill="#0B3B6B"/>
+        <rect x="130" y="204" width="14" height="48" rx="7" fill="#0B3B6B"/>
+        <rect x="276" y="204" width="14" height="48" rx="7" fill="#0B3B6B"/>
+        <path d="M30 258 Q210 108 390 258" stroke="#159FE8" stroke-width="34" stroke-linecap="round" fill="none"/>
+        <path d="M30 250 Q210 100 390 250" stroke="#ffffff" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.28"/>
+        <path d="M30 258 Q210 108 390 258" stroke="#12864A" stroke-width="4" stroke-linecap="round" fill="none" stroke-dasharray="1 15" opacity="0.9"/>
+        <circle cx="196" cy="176" r="6" fill="#0B3B6B"/>
+        <circle cx="224" cy="176" r="6" fill="#0B3B6B"/>
+        <circle cx="198" cy="174" r="1.6" fill="#ffffff"/>
+        <circle cx="226" cy="174" r="1.6" fill="#ffffff"/>
+        <circle cx="180" cy="190" r="8" fill="#7FCB6E" opacity="0.55"/>
+        <circle cx="240" cy="190" r="8" fill="#7FCB6E" opacity="0.55"/>
+        <path d="M199 194 Q210 203 221 194" stroke="#0B3B6B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <g class="wave-arm">
+          <path d="M300 198 Q336 172 338 128" stroke="#159FE8" stroke-width="15" stroke-linecap="round" fill="none"/>
+          <circle cx="338" cy="126" r="14" fill="#ffffff" stroke="#159FE8" stroke-width="4"/>
+        </g>
+      </svg>`;
+const bigBridge=bridgeSvg.replace('class="bridge"','class="bridge big"');
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const PRAISE=["🌟 Wow, that sounded great!","🎉 Yes! I heard you loud and clear!","👏 Great speaking! You've got it!","😊 Super! That was just right!"];
+function tryWord(key,say,btn){
+ if(!SR){say.textContent="😊 Your device can't listen just yet, but you can still practice! Listen to me, then say it out loud like you're talking to a friend.";return}
+ const rec=new SR();rec.lang='en-US';say.textContent="🎤 I'm listening! Say “"+key+"” whenever you're ready.";
+ if(btn)btn.classList.add('listening');
+ const stop=()=>{if(btn)btn.classList.remove('listening')};
+ rec.onresult=e=>{stop();const raw=e.results[0][0].transcript,h=raw.toLowerCase().replace(/[^a-z ]/g,'');
+  if(h.includes(key.toLowerCase())){say.textContent=PRAISE[Math.floor(Math.random()*PRAISE.length)]}
+  else{say.textContent="Ooh, I heard “"+raw+"”. That was a brave try! 💛 Let's say it together: “"+key+"”. Tap Speak when you're ready to try again.";bridgeSpeak(key,{mode:'pronunciation'})}};
+ rec.onerror=e=>{stop();say.textContent=e.error==='not-allowed'?"I can't use the microphone right now, and that's okay! Listen to me, then say it out loud on your own. 😊":"I didn't catch that, but that's okay! Tap Speak and we'll try again. No rush! 😊"};
+ rec.onend=stop;
+ try{rec.start()}catch(x){stop()}}
+function vocab(el,list,say){list.forEach(([w,hint,emoji])=>{const r=document.createElement('div');r.className='vocab';
+ r.innerHTML='<span style="font-size:1.8rem" aria-hidden="true">'+emoji+'</span><span class="w">'+w+'<span class="h">'+hint+'</span></span><span class="btns"><button class="mini">🔊 Listen</button><button class="mini rec">🎤 Speak</button></span>';
+ const [a,b]=r.querySelectorAll('button');a.setAttribute('aria-label','Listen to '+w);b.setAttribute('aria-label','Say '+w);
+ a.onclick=()=>bridgeSpeak(w,{mode:'pronunciation'});b.onclick=()=>tryWord(w,say,b);el.appendChild(r)})}
+function lines(arr){speakSeq(arr)}
+
+const need={5:2,7:1,8:3,9:1},got={};
+function gate(st,i){return()=>{(got[st]=got[st]||new Set()).add(i);upd()}}
+// Vocab, dialogue, and question content below all comes from advFor(s.level, n) (see
+// common.js). Explorer's content there is the original hand-written Chapter 1 sample; Builder,
+// Communicator, and Leader have their own Chapter 1 sample in the exact same shape, so this one
+// render pipeline drives every level without needing a separate lesson system per level.
+const listenItems=C.listenItems;
+const readQ=C.readQ;
+const match=C.match;
+
+const steps=[
+ el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+C.introTitle+'</h2><p class="muted" style="margin:0;line-height:1.6">'+C.introLine+'</p></div><div class="obj">'+C.objective+'</div>'},
+ el=>{el.innerHTML='<h2 style="margin-bottom:6px">'+C.vocab1Title+'</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Listen, then say each word out loud.</p><div id="vl"></div><p class="say" id="say" aria-live="polite"></p>';
+  vocab(el.querySelector('#vl'),C.vocab1,el.querySelector('#say'))},
+ el=>{el.innerHTML='<h2 style="margin-bottom:6px">When do we say it?</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Tap to hear each one.</p><div id="w"></div>';
+  C.whenSayIt.forEach(([w,h,e,sp])=>{
+   const r=document.createElement('div');r.className='vocab';r.innerHTML='<span style="font-size:1.8rem" aria-hidden="true">'+e+'</span><span class="w">'+w+'<span class="h">'+h+'</span></span><span class="btns"><button class="mini">🔊 Listen</button></span>';
+   r.querySelector('button').onclick=()=>speak(sp);el.querySelector('#w').appendChild(r)})},
+ el=>{el.innerHTML='<h2 style="margin-bottom:6px">'+C.vocab2Title+'</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Listen, then say each word out loud.</p><div id="vl"></div><p class="say" id="say" aria-live="polite"></p>';
+  vocab(el.querySelector('#vl'),C.vocab2,el.querySelector('#say'))},
+ el=>{const c=C.conversation.map(([who,txt])=>txt);
+  el.innerHTML='<h2 style="margin-bottom:6px">'+C.convTitle+'</h2><p class="muted" style="margin:0 0 12px;font-size:.92rem">'+C.convIntro+'</p><div class="talk">'+C.conversation.map(([who,txt])=>'<div class="line"><span class="who">🙂 '+who+'</span>'+txt+'</div>').join('')+'</div><div class="actions" style="margin:16px 0 0"><button class="mini" id="pc">🔊 Play the conversation</button></div>';
+  el.querySelector('#pc').onclick=()=>lines(c)},
+ el=>{el.innerHTML='<h2 style="margin-bottom:6px">Listen and choose</h2><p class="muted" style="margin:0 0 14px;font-size:.92rem">Tap Play, then pick what you heard.</p><div id="li"></div>';
+  listenItems.forEach((q,i)=>{const d=document.createElement('div');d.style.marginBottom='26px';d.innerHTML='<button class="mini" style="margin-bottom:14px">🔊 Play</button><div></div>';
+   d.querySelector('button').onclick=()=>speak(q.say);el.querySelector('#li').appendChild(d);mountChoices(d.querySelector('div'),q,gate(5,i))})},
+ el=>{el.innerHTML='<h2 style="margin-bottom:6px">Your turn to talk!</h2><p class="muted" style="margin:0 0 12px;font-size:.92rem">You are '+C.roleplay[1][0]+'. Listen to '+C.roleplay[0][0]+', then say your lines.</p><div class="talk" id="rp"></div><p class="say" id="say" aria-live="polite"></p>';
+  C.roleplay.forEach(([who,t,key])=>{
+   const r=document.createElement('div');r.className='line';
+   r.innerHTML='<span class="who'+(key?' you':'')+'">'+(key?'🎤 You':'🙂 '+who)+'</span><span>'+t+'</span><span class="btns" style="margin-left:auto;display:flex;gap:8px"><button class="mini">🔊 Listen</button>'+(key?'<button class="mini rec">🎤 Speak</button>':'')+'</span>';
+   const b=r.querySelectorAll('button');b[0].onclick=()=>bridgeSpeak(t,{mode:'pronunciation'});if(key)b[1].onclick=()=>tryWord(key,el.querySelector('#say'),b[1]);
+   el.querySelector('#rp').appendChild(r)})},
+ el=>{const txt=C.readPassage;
+  el.innerHTML='<h2 style="margin-bottom:6px">Read it</h2><div class="readbox">'+txt+'</div><div class="actions" style="margin:14px 0 6px"><button class="mini" id="rd">🔊 Read it to me</button></div><p class="sub">Check what you read</p><div id="rq"></div>';
+  el.querySelector('#rd').onclick=()=>speak(txt);mountChoices(el.querySelector('#rq'),readQ,gate(7,0))},
+ el=>{el.innerHTML='<h2 style="margin-bottom:14px">Match the words</h2><div id="m0" style="margin-bottom:24px"></div><div id="m1" style="margin-bottom:24px"></div><div id="m2"></div>';
+  match.forEach((q,i)=>mountChoices(el.querySelector('#m'+i),q,gate(8,i)))},
+ el=>{LB_mountLessonGame(el,C,s.level,gate(9,0))},
+ el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+(review?'Nice review!':"You're ready for the quiz!")+'</h2><p class="muted" style="margin:0 0 14px;line-height:1.6">'+C.readyLine+'</p><p class="muted" style="margin:0;line-height:1.6">'+(review?'Come back to any lesson whenever you like.':"Five short questions, and you'll earn your badge.")+'</p></div>'}
+];
+const stage=document.getElementById('stage'),nx=document.getElementById('next'),bk=document.getElementById('back'),dots=document.getElementById('dots');
+let step=0;steps.forEach(()=>dots.appendChild(document.createElement('span')));
+function upd(){const g=need[step];nx.disabled=!!g&&(!got[step]||got[step].size<g);
+ nx.textContent=step===steps.length-1?(review?'Back to My Learning':'Start the quiz'):'Next';
+ bk.style.visibility=step===0?'hidden':'visible';
+ document.getElementById('stepLabel').textContent='Part '+(step+1)+' of '+steps.length;
+ [...dots.children].forEach((d,i)=>d.classList.toggle('on',i<=step))}
+function show(){stopAudio();steps[step](stage);upd();window.scrollTo({top:0})}
+nx.onclick=()=>{if(step<steps.length-1){step++;show()}else location.href=review?('linguabridge-lesson-quiz.html?review='+n):('linguabridge-lesson-quiz.html?n='+n)};
+bk.onclick=()=>{if(step>0){step--;show()}};
+show();
+
+</script>
+
 </body></html>
