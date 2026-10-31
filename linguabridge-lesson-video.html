@@ -124,4 +124,57 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
+<script>
+// LESSON VIDEO RENDERER — plays Bridge's animated scene-by-scene video
+// recap of the lesson just finished (speech-synthesized captions, a
+// progress bar, play/pause/replay/mute controls). Restored 2026-10-30:
+// lost in the same translator-removal regression described in 150b41d.
+const VIDEO_URL='';   /* e.g. 'videos/explorer-lesson-1.mp4' once a real video exists */
+const BR=`<svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <ellipse cx="210" cy="262" rx="170" ry="26" fill="#159FE8" opacity="0.12"/>
+        <rect x="4" y="248" width="66" height="18" rx="7" fill="#0B3B6B"/>
+        <rect x="350" y="248" width="66" height="18" rx="7" fill="#0B3B6B"/>
+        <rect x="130" y="204" width="14" height="48" rx="7" fill="#0B3B6B"/>
+        <rect x="276" y="204" width="14" height="48" rx="7" fill="#0B3B6B"/>
+        <path d="M30 258 Q210 108 390 258" stroke="#159FE8" stroke-width="34" stroke-linecap="round" fill="none"/>
+        <path d="M30 250 Q210 100 390 250" stroke="#ffffff" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.28"/>
+        <path d="M30 258 Q210 108 390 258" stroke="#12864A" stroke-width="4" stroke-linecap="round" fill="none" stroke-dasharray="1 15" opacity="0.9"/>
+        <circle cx="196" cy="176" r="6" fill="#0B3B6B"/>
+        <circle cx="224" cy="176" r="6" fill="#0B3B6B"/>
+        <circle cx="198" cy="174" r="1.6" fill="#ffffff"/>
+        <circle cx="226" cy="174" r="1.6" fill="#ffffff"/>
+        <circle cx="180" cy="190" r="8" fill="#7FCB6E" opacity="0.55"/>
+        <circle cx="240" cy="190" r="8" fill="#7FCB6E" opacity="0.55"/>
+        <path d="M199 194 Q210 203 221 194" stroke="#0B3B6B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <g class="wave-arm">
+          <path d="M300 198 Q336 172 338 128" stroke="#159FE8" stroke-width="15" stroke-linecap="round" fill="none"/>
+          <circle cx="338" cy="126" r="14" fill="#ffffff" stroke="#159FE8" stroke-width="4"/>
+        </g>
+      </svg>`;
+const vid=document.getElementById('vid');
+const s=LB.get();
+const mine=s.completed.filter(c=>c.level===s.level),last=mine[mine.length-1]||{n:1};
+const S=advFor(s.level,last.n).video;
+if(VIDEO_URL){vid.innerHTML='<video controls playsinline src="'+VIDEO_URL+'"></video>';document.getElementById('ctrls').style.display='none'}
+else{
+ let i=0,tmr=null,playing=false,mute=false;
+ const total=S.reduce((a,x)=>a+x.d,0);
+ function scene(k){const c=S[k];
+  vid.innerHTML='<div class="scene">'+(c.dl?'<div class="dl">'+c.dl.map((x,j)=>'<div style="animation-delay:'+(j*1.6)+'s">'+x+'</div>').join('')+'</div>':'<div class="em" aria-hidden="true">'+c.em+'</div>'+(c.wd?'<div class="wd">'+c.wd+'</div>':''))+'</div>'+BR.replace('class="bridge"','class="vb"')+'<div class="cap" aria-live="polite">'+c.say+'</div><div class="bar"><i id="pg"></i></div>';
+  const done=S.slice(0,k).reduce((a,x)=>a+x.d,0);
+  const pg=document.getElementById('pg');pg.style.width=(done/total*100)+'%';pg.style.transition='width '+c.d+'ms linear';requestAnimationFrame(()=>requestAnimationFrame(()=>pg.style.width=((done+c.d)/total*100)+'%'));
+  if(!mute)speak(c.say);
+  tmr=setTimeout(()=>{if(k<S.length-1){i=k+1;scene(i)}else{playing=false;document.getElementById('pp').textContent='▶ Play'}},c.d)}
+ function play(){playing=true;document.getElementById('pp').textContent='⏸ Pause';scene(i)}
+ function pause(){playing=false;clearTimeout(tmr);stopAudio();document.getElementById('pp').textContent='▶ Play'}
+ vid.innerHTML='<button class="start" id="go" aria-label="Play video"><span>▶ Play video</span></button>';
+ document.getElementById('go').onclick=play;
+ document.getElementById('pp').onclick=()=>playing?pause():play();
+
+ document.getElementById('rp').onclick=()=>{clearTimeout(tmr);i=0;play()};
+ document.getElementById('snd').onclick=e=>{mute=!mute;e.target.textContent=mute?'🔇 Sound off':'🔊 Sound on';if(mute)stopAudio()};
+}
+
+</script>
+
 </body></html>
