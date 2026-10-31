@@ -203,4 +203,133 @@ details.proto .btn{padding:8px 18px;font-size:.88rem}
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
+<script>
+// DASHBOARD RENDERER — reads progress state (LB.get()) and fills in
+// today's lesson, the chapter map, earned badges, and (founder-only) the
+// voice-compare panel and lesson browser. Restored 2026-10-30: this code
+// was accidentally deleted when the translator feature was removed (both
+// lived in the same <script> tag and the translator's removal regex swept
+// up everything through the end of that tag). Text here is now plain
+// English directly -- the translator is gone, so there's no t()/T() to
+// resolve at render time anymore.
+const s=LB.get(),L=LEVELS[s.level]||LEVELS.explorer,mine=s.completed.filter(c=>c.level===s.level),locked=LB.LOCK&&LB.doneToday(s)&&!LB.isFounder(),n=mine.length+1,comingSoon=n>advCount(s.level);
+document.getElementById('levelTag').textContent=L.emoji+' '+L.name+' · Chapter '+(chapterFor(s.level,n).index+1)+': '+chapterFor(s.level,n).name;
+document.getElementById('mapLevel').textContent=L.name;
+document.getElementById('bridgeMsg').textContent=locked?"You finished today's lesson. Great work! I'll see you tomorrow.":"I'm so happy you're here! Ready for a new lesson?";
+const tt2=document.getElementById('todayTitle'),tt=document.getElementById('todayText'),tm=document.getElementById('todayTime'),sb=document.getElementById('startBtn');
+if(comingSoon){tt2.textContent='More Adventures coming soon';tt.textContent="You've finished every Adventure written so far for this level. Bridge is working on more — check back soon!";sb.style.display='none'}
+else if(locked){tt2.textContent="Today's lesson is done!";tt.textContent="Your next lesson opens tomorrow. Missing a day never resets your progress.";sb.style.display='none'}
+else{tt2.textContent='Lesson '+n+' is ready';tt.textContent='Finish the lesson, take the quiz, and earn your badge.';tm.textContent='About 20–30 minutes';sb.textContent='Start Lesson '+n}
+const ol=document.getElementById('chapters'),curChI=chapterFor(s.level,Math.min(n,advCount(s.level))).index;
+L.chapters.forEach((c,i)=>{const li=document.createElement('li');
+ const state=i<curChI?'done':(i===curChI?'current':'locked');li.className=state;
+ const stateLabel=i<curChI?'Review':(i===curChI?"You're here":'Opens later');
+ li.innerHTML='<span class="ch-num">'+(i+1)+'</span><div><div class="ch-title"></div><div class="ch-meta">'+c[1]+' Adventures</div></div><span class="ch-state">'+stateLabel+'</span>';
+ li.querySelector('.ch-title').textContent=c[0];ol.appendChild(li)});
+const shelf=document.getElementById('shelf');
+if(!mine.length){shelf.innerHTML='<p class="muted" style="grid-column:1/-1;margin:0">Your first badge is waiting. Finish a lesson to earn it!</p>'}
+mine.forEach(c=>{const f=document.createElement('figure');const topic=advFor(c.level,c.n).topic;
+ f.innerHTML=badgeSVG(c.level,c.n,topic.icon,110)+'<figcaption>'+topic.name+'</figcaption><a class="btn btn-secondary" href="linguabridge-lesson.html?review='+c.n+'">Review</a>';shelf.appendChild(f)});
+const gal=document.getElementById('gallery');
+Object.keys(LEVELS).forEach(k=>{const f=document.createElement('figure');const topic=advFor(k,1).topic;f.innerHTML=badgeSVG(k,1,topic.icon,120)+'<figcaption>'+LEVELS[k].emoji+' '+LEVELS[k].name+'</figcaption>';gal.appendChild(f)});
+const vs=document.getElementById('voiceSel');
+vs.innerHTML='';Object.keys(AUDIO.voices).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=AUDIO.voices[k];vs.appendChild(o)});
+vs.value=AUDIO.voice();
+const TESTLINE="Hello! I'm Bridge. Let's learn together.";
+vs.onchange=()=>{const st=LB.get();st.voice=vs.value;LB.set(st);speak(TESTLINE)};
+document.getElementById('voiceTest').onclick=()=>speak(TESTLINE);
+const sel=document.getElementById('lvlSel');sel.value=s.level;
+sel.onchange=()=>{s.level=sel.value;LB.set(s);location.reload()};
+document.getElementById('nextDay').onclick=()=>{s.dayOffset=(s.dayOffset||0)+1;LB.set(s);location.reload()};
+document.getElementById('reset').onclick=()=>{s.completed=[];s.dayOffset=0;delete s.justPassed;LB.set(s);location.reload()};
+
+
+// Founder-only voice compare panel: reveal it if the authenticated user is
+// the founder, and wire each button to preview that voice (via the same
+// bridgeSpeak()/AUDIO system every other page uses) by temporarily setting
+// the stored voice preference, same as a real visitor would experience it.
+if (window.LB_AUTH_PROMISE) {
+  window.LB_AUTH_PROMISE.then(function (data) {
+    if (data && data.role) {
+      // Cache the role so this page (and the lesson/lesson-quiz pages) can
+      // bypass the daily lock for the founder without re-checking auth.
+      var wasFounderCached = LB.isFounder();
+      LB.cacheRole(data.role);
+      // If the lock was rendered on (stale/no cache yet) but the founder's
+      // role just came back, reload once so the unlocked dashboard shows
+      // immediately instead of waiting for the next visit.
+      if (data.role === 'founder' && !wasFounderCached && locked && !sessionStorage.getItem('lb_founder_unlock_reload')) {
+        sessionStorage.setItem('lb_founder_unlock_reload', '1');
+        location.reload();
+        return;
+      }
+    }
+    if (data && data.role === 'founder') {
+      var panel = document.getElementById('founderVoicePanel');
+      if (panel) {
+        panel.style.display = 'block';
+        panel.querySelectorAll('[data-voice]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var voiceId = btn.getAttribute('data-voice');
+            var s = LB.get();
+            s.voice = voiceId;
+            LB.set(s);
+            bridgeSpeak('Hello', { mode: 'conversational' });
+          });
+        });
+      }
+      // Founder-only lesson browser: every level, every authored lesson, as a
+      // review link (?review=n) -- review mode already skips the lock and the
+      // advCount gate and never touches progress/badges (see lesson.html /
+      // lesson-quiz.html). Clicking a lesson switches s.level to that lesson's
+      // level first, same as the existing level <select> does, so the lesson
+      // page's own s.level-based lookups resolve to the right content.
+      var browser = document.getElementById('founderLessonBrowser');
+      if (browser) {
+        browser.style.display = 'block';
+        var tabs = document.getElementById('flbLevelTabs');
+        var list = document.getElementById('flbLessons');
+        var levelKeys = Object.keys(LEVELS);
+        function renderLevel(levelKey) {
+          list.innerHTML = '';
+          var total = advCount(levelKey);
+          for (var n = 1; n <= total; n++) {
+            var topic = advFor(levelKey, n).topic || {};
+            var ch = chapterFor(levelKey, n);
+            var row = document.createElement('a');
+            row.className = 'btn btn-secondary';
+            row.style.textAlign = 'left';
+            row.href = '#';
+            row.textContent = (topic.icon || '') + ' Ch ' + (ch.index + 1) + ': ' + ch.name + ' — Lesson ' + n + ': ' + (topic.name || '(untitled)');
+            row.addEventListener('click', function (lvl, lessonN) {
+              return function (e) {
+                e.preventDefault();
+                var s2 = LB.get();
+                s2.level = lvl;
+                LB.set(s2);
+                window.location.href = 'linguabridge-lesson.html?review=' + lessonN;
+              };
+            }(levelKey, n));
+            list.appendChild(row);
+          }
+        }
+        levelKeys.forEach(function (lvl, idx) {
+          var tabBtn = document.createElement('button');
+          tabBtn.type = 'button';
+          tabBtn.className = idx === 0 ? 'btn btn-primary' : 'btn btn-secondary';
+          tabBtn.textContent = (LEVELS[lvl].emoji || '') + ' ' + LEVELS[lvl].name + ' (' + advCount(lvl) + ')';
+          tabBtn.addEventListener('click', function () {
+            tabs.querySelectorAll('button').forEach(function (b) { b.className = 'btn btn-secondary'; });
+            tabBtn.className = 'btn btn-primary';
+            renderLevel(lvl);
+          });
+          tabs.appendChild(tabBtn);
+        });
+        renderLevel(levelKeys[0]);
+      }
+    }
+  });
+}
+</script>
+
 </body></html>
