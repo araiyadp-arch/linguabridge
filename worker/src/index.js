@@ -43,6 +43,15 @@
  *        from the system prompt alone, not from "only logged-in users can
  *        reach it."
  *
+ * Account safety (2026-11-05, founder request): signup needs an INVITE CODE the
+ * founder creates, and every new parent account starts as 'pending' until the
+ * founder approves it (admin endpoints /api/admin/*, founder only). Logins are
+ * rate-limited and locked out after repeated wrong tries (table auth_limits).
+ * Passwords need 10+ characters. Child logins only work while their parent is
+ * approved. Ask Bridge now requires a signed-in account. Tables/columns used:
+ * users.status ('approved'|'pending'|'disabled'), users.invite_code,
+ * invite_codes, auth_limits (already created in D1).
+ *
  * Bindings required (set in the Cloudflare dashboard when creating the Worker):
  *   DB -> the "linguabridge" D1 database
  *   AI -> Workers AI (Settings -> Bindings -> Add -> Workers AI; no extra
@@ -80,6 +89,8 @@ function jsonResponse(data, status, request, extraHeaders = {}) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
       ...corsHeaders(request),
       ...extraHeaders,
     },
@@ -203,7 +214,8 @@ async function getSessionUser(request, env) {
   const row = await env.DB.prepare(
     `SELECT users.id as id, users.username as username, users.role as role, sessions.expires_at as expires_at
      FROM sessions JOIN users ON users.id = sessions.user_id
-     WHERE sessions.token = ?`
+     LEFT JOIN users p ON p.id = users.parent_id
+     WHERE sessions.token = ? AND users.status = 'approved' AND (p.id IS NULL OR p.status = 'approved')`
   )
     .bind(token)
     .first();
@@ -223,6 +235,50 @@ const CHILD_USERNAME_RE = /^[a-zA-Z0-9]{3,20}$/;
 // to enter, stored/verified exactly like a password hash underneath.
 const CHILD_PIN_RE = /^[0-9]{4,6}$/;
 
+// ---------- Safety helpers (2026-11-05) ----------
+const COMMON_PASSWORDS = new Set(["password","password1","password123","1234567890","123456789","12345678","qwertyuiop","qwerty123","iloveyou","letmein123","welcome123","admin12345","abc123456","linguabridge","lingua-bridge","password12","passw0rd12"]);
+
+function passwordProblem(password, email) {
+  if (password.length < 10) return "Password must be at least 10 characters.";
+  if (password.length > 200) return "That password is too long.";
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) return "Password needs at least one letter and one number.";
+  const lower = password.toLowerCase();
+  if (COMMON_PASSWORDS.has(lower)) return "That password is too easy to guess. Please pick another.";
+  const local = (email || "").split("@")[0].toLowerCase();
+  if (local.length >= 4 && lower.includes(local)) return "Password should not contain your email name.";
+  return null;
+}
+
+function clientIp(request) {
+  return request.headers.get("CF-Connecting-IP") || "unknown";
+}
+
+// Simple fixed-window failure counter + lockout, stored in D1 (auth_limits).
+async function isLocked(env, key) {
+  const row = await env.DB.prepare("SELECT locked_until FROM auth_limits WHERE k = ?").bind(key).first();
+  return !!row && row.locked_until > Date.now();
+}
+async function recordFailure(env, key, max, windowMs, lockMs) {
+  const now = Date.now();
+  const row = await env.DB.prepare("SELECT n, first_at FROM auth_limits WHERE k = ?").bind(key).first();
+  let n = 1, first = now;
+  if (row && now - row.first_at <= windowMs) { n = row.n + 1; first = row.first_at; }
+  const locked = n >= max ? now + lockMs : 0;
+  await env.DB.prepare(
+    "INSERT INTO auth_limits (k, n, first_at, locked_until) VALUES (?, ?, ?, ?) ON CONFLICT(k) DO UPDATE SET n = excluded.n, first_at = excluded.first_at, locked_until = excluded.locked_until"
+  ).bind(key, n, first, locked).run();
+}
+async function clearFailures(env, key) {
+  await env.DB.prepare("DELETE FROM auth_limits WHERE k = ?").bind(key).run();
+}
+
+function normalizeInvite(raw) {
+  return (raw || "").toString().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
+}
+function formatInvite(code) {
+  return "LB-" + code.slice(0, 4) + "-" + code.slice(4, 8);
+}
+
 async function handleSignup(request, env) {
   let body;
   try {
@@ -231,29 +287,59 @@ async function handleSignup(request, env) {
     return jsonResponse({ error: "Invalid request body." }, 400, request);
   }
 
+  const ip = clientIp(request);
+  const ipKey = "signup:ip:" + ip;
+  if (await isLocked(env, ipKey)) {
+    return jsonResponse({ error: "Too many tries. Please wait an hour and try again." }, 429, request);
+  }
+
   const email = (body.email || "").toString().trim().toLowerCase();
   const password = (body.password || "").toString();
+  // Stored without the "LB-" prefix and dashes: "LB-ABCD-EFGH" -> "ABCDEFGH"
+  let invite = normalizeInvite(body.invite);
+  if (invite.startsWith("LB") && invite.length === 10) invite = invite.slice(2);
 
-  if (!email || !EMAIL_RE.test(email)) {
+  if (!email || !EMAIL_RE.test(email) || email.length > 200) {
     return jsonResponse({ error: "Please enter a valid email address." }, 400, request);
   }
-  if (password.length < 8) {
+  const pwProblem = passwordProblem(password, email);
+  if (pwProblem) {
+    return jsonResponse({ error: pwProblem }, 400, request);
+  }
+
+  const now = Date.now();
+  const codeRow = invite
+    ? await env.DB.prepare(
+        "SELECT code, label, max_uses, uses, expires_at, active FROM invite_codes WHERE code = ?"
+      ).bind(invite).first()
+    : null;
+  const codeOk = !!codeRow && codeRow.active === 1 && codeRow.uses < codeRow.max_uses &&
+    (codeRow.expires_at == null || codeRow.expires_at > now);
+  if (!codeOk) {
+    await recordFailure(env, ipKey, 8, 60 * 60 * 1000, 60 * 60 * 1000);
     return jsonResponse(
-      { error: "Password must be at least 8 characters." },
-      400,
+      { error: "That invite code isn't valid or has expired. Please check it or ask the LinguaBridge founder for a new one." },
+      403,
       request
     );
   }
 
-  const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
-    .bind(email)
-    .first();
+  const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
   if (existing) {
+    await recordFailure(env, ipKey, 8, 60 * 60 * 1000, 60 * 60 * 1000);
     return jsonResponse(
       { error: "An account with that email already exists. Try logging in instead." },
       409,
       request
     );
+  }
+
+  // Use up one invite slot atomically (so two people can't both use a single-use code).
+  const used = await env.DB.prepare(
+    "UPDATE invite_codes SET uses = uses + 1 WHERE code = ? AND active = 1 AND uses < max_uses AND (expires_at IS NULL OR expires_at > ?)"
+  ).bind(invite, now).run();
+  if (!used.meta || used.meta.changes !== 1) {
+    return jsonResponse({ error: "That invite code isn't valid or has expired." }, 403, request);
   }
 
   const { hash, salt, iterations } = await hashPassword(password);
@@ -261,14 +347,13 @@ async function handleSignup(request, env) {
 
   try {
     await env.DB.prepare(
-      `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id)
-       VALUES (?, ?, ?, ?, ?, 'parent', ?, NULL)`
+      `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id, status, invite_code)
+       VALUES (?, ?, ?, ?, ?, 'parent', ?, NULL, 'pending', ?)`
     )
-      .bind(id, email, hash, salt, iterations, email)
+      .bind(id, email, hash, salt, iterations, email, invite)
       .run();
   } catch (e) {
-    // Most likely the UNIQUE index on username/email caught a race with
-    // another signup for the same email between the check above and here.
+    await env.DB.prepare("UPDATE invite_codes SET uses = MAX(uses - 1, 0) WHERE code = ?").bind(invite).run();
     return jsonResponse(
       { error: "An account with that email already exists. Try logging in instead." },
       409,
@@ -276,13 +361,8 @@ async function handleSignup(request, env) {
     );
   }
 
-  const token = await createSession(env, id);
-  return jsonResponse(
-    { authenticated: true, username: email, role: "parent" },
-    200,
-    request,
-    setSessionCookieHeaders(token)
-  );
+  // No session is created: the account can't be used until the founder approves it.
+  return jsonResponse({ pending: true }, 200, request);
 }
 
 async function handleListChildren(request, env) {
@@ -371,8 +451,8 @@ async function handleLogin(request, env) {
     return jsonResponse({ error: "Invalid request body." }, 400, request);
   }
 
-  const username = (body.username || "").trim();
-  const password = body.password || "";
+  const username = (body.username || "").toString().trim().slice(0, 200);
+  const password = (body.password || "").toString().slice(0, 200);
 
   if (!username || !password) {
     return jsonResponse(
@@ -382,19 +462,38 @@ async function handleLogin(request, env) {
     );
   }
 
+  // Lockouts: per person+device, per account (any device), and per device overall.
+  const ip = clientIp(request);
+  const uname = username.toLowerCase();
+  const keyPair = "login:p:" + ip + ":" + uname;
+  const keyUser = "login:u:" + uname;
+  const keyIp = "login:i:" + ip;
+  if ((await isLocked(env, keyPair)) || (await isLocked(env, keyUser)) || (await isLocked(env, keyIp))) {
+    return jsonResponse(
+      { error: "Too many tries. Please wait 15 minutes and try again.", locked: true },
+      429,
+      request
+    );
+  }
+  const fail = async () => {
+    await recordFailure(env, keyPair, 5, 15 * 60 * 1000, 15 * 60 * 1000);
+    await recordFailure(env, keyUser, 20, 60 * 60 * 1000, 60 * 60 * 1000);
+    await recordFailure(env, keyIp, 40, 15 * 60 * 1000, 15 * 60 * 1000);
+  };
+
   const user = await env.DB.prepare(
-    "SELECT id, username, password_hash, password_salt, iterations, role FROM users WHERE username = ?"
+    `SELECT u.id as id, u.username as username, u.password_hash as password_hash, u.password_salt as password_salt,
+            u.iterations as iterations, u.role as role, u.status as status, p.status as parent_status
+     FROM users u LEFT JOIN users p ON p.id = u.parent_id WHERE u.username = ?`
   )
     .bind(username)
     .first();
 
   // Same error for "no such user" and "wrong password" — don't leak which.
   if (!user) {
-    return jsonResponse(
-      { error: "Incorrect username or password." },
-      401,
-      request
-    );
+    await hashPassword(password); // keep timing similar to a real check
+    await fail();
+    return jsonResponse({ error: "Incorrect username or password." }, 401, request);
   }
 
   const ok = await verifyPassword(
@@ -405,37 +504,117 @@ async function handleLogin(request, env) {
   );
 
   if (!ok) {
+    await fail();
+    return jsonResponse({ error: "Incorrect username or password." }, 401, request);
+  }
+
+  // Correct password, but the account may not be switched on yet.
+  const parentWaiting = user.parent_status && user.parent_status !== "approved";
+  if (user.status === "pending" || parentWaiting) {
     return jsonResponse(
-      { error: "Incorrect username or password." },
-      401,
+      { error: "Your account is waiting for approval from the LinguaBridge founder. Please check back soon.", pending: true },
+      403,
       request
     );
   }
+  if (user.status !== "approved") {
+    return jsonResponse({ error: "This account is not active. Please contact LinguaBridge." }, 403, request);
+  }
 
-  const token = crypto.randomUUID() + crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  await clearFailures(env, keyPair);
+  await clearFailures(env, keyUser);
 
-  await env.DB.prepare(
-    "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)"
-  )
-    .bind(token, user.id, expiresAt.toISOString())
-    .run();
-
-  const cookie = [
-    `${SESSION_COOKIE}=${token}`,
-    "Path=/",
-    "HttpOnly",
-    "Secure",
-    "SameSite=None", // cross-subdomain (lingua-bridge.us -> api.lingua-bridge.us)
-    `Max-Age=${SESSION_DAYS * 24 * 60 * 60}`,
-  ].join("; ");
+  const token = await createSession(env, user.id);
+  // Tidy up old expired sessions now and then (cheap, keeps the table small).
+  await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(new Date().toISOString()).run();
 
   return jsonResponse(
     { authenticated: true, username: user.username, role: user.role },
     200,
     request,
-    { "Set-Cookie": cookie }
+    setSessionCookieHeaders(token)
   );
+}
+
+// ---------- Founder admin (approve accounts, make invite codes) ----------
+async function requireFounder(request, env) {
+  const u = await getSessionUser(request, env);
+  return u && u.role === "founder" ? u : null;
+}
+
+async function readJson(request) {
+  try { return await request.json(); } catch (e) { return null; }
+}
+
+async function handleAdminOverview(request, env) {
+  if (!(await requireFounder(request, env))) return jsonResponse({ error: "Not allowed." }, 403, request);
+  const pending = await env.DB.prepare(
+    `SELECT u.id, u.email, u.created_at, i.label as invite_label
+     FROM users u LEFT JOIN invite_codes i ON i.code = u.invite_code
+     WHERE u.role = 'parent' AND u.status = 'pending' ORDER BY u.created_at ASC LIMIT 200`
+  ).all();
+  const approved = await env.DB.prepare(
+    `SELECT u.id, u.email, u.status, u.created_at,
+            (SELECT COUNT(*) FROM users c WHERE c.parent_id = u.id) as children
+     FROM users u WHERE u.role = 'parent' AND u.status != 'pending' ORDER BY u.created_at DESC LIMIT 200`
+  ).all();
+  const invites = await env.DB.prepare(
+    "SELECT code, label, max_uses, uses, expires_at, active FROM invite_codes ORDER BY created_at DESC LIMIT 100"
+  ).all();
+  return jsonResponse(
+    {
+      pending: pending.results || [],
+      parents: approved.results || [],
+      invites: (invites.results || []).map((r) => ({ ...r, code: formatInvite(r.code) })),
+    },
+    200,
+    request
+  );
+}
+
+async function handleAdminAction(request, env, action) {
+  if (!(await requireFounder(request, env))) return jsonResponse({ error: "Not allowed." }, 403, request);
+  const body = await readJson(request);
+  if (!body) return jsonResponse({ error: "Invalid request body." }, 400, request);
+  const id = (body.id || "").toString();
+
+  if (action === "approve") {
+    const r = await env.DB.prepare("UPDATE users SET status = 'approved' WHERE id = ? AND role = 'parent' AND status = 'pending'").bind(id).run();
+    return jsonResponse({ ok: !!(r.meta && r.meta.changes) }, 200, request);
+  }
+  if (action === "reject") {
+    // Only never-approved accounts can be rejected (deleted).
+    await env.DB.prepare("DELETE FROM users WHERE id = ? AND role = 'parent' AND status = 'pending'").bind(id).run();
+    return jsonResponse({ ok: true }, 200, request);
+  }
+  if (action === "disable" || action === "enable") {
+    const status = action === "disable" ? "disabled" : "approved";
+    await env.DB.prepare("UPDATE users SET status = ? WHERE id = ? AND role = 'parent'").bind(status, id).run();
+    if (action === "disable") {
+      await env.DB.prepare(
+        "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE id = ? OR parent_id = ?)"
+      ).bind(id, id).run();
+    }
+    return jsonResponse({ ok: true }, 200, request);
+  }
+  if (action === "invite") {
+    const label = (body.label || "").toString().trim().slice(0, 80);
+    const maxUses = Math.min(Math.max(parseInt(body.max_uses, 10) || 1, 1), 100);
+    const days = Math.min(Math.max(parseInt(body.days, 10) || 14, 1), 90);
+    const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    let code = "";
+    for (const b of bytes) code += alphabet[b % alphabet.length];
+    await env.DB.prepare(
+      "INSERT INTO invite_codes (code, label, max_uses, uses, expires_at, active, created_at) VALUES (?, ?, ?, 0, ?, 1, ?)"
+    ).bind(code, label, maxUses, Date.now() + days * 86400000, Date.now()).run();
+    return jsonResponse({ code: formatInvite(code), max_uses: maxUses, days }, 200, request);
+  }
+  if (action === "revoke") {
+    await env.DB.prepare("UPDATE invite_codes SET active = 0 WHERE code = ?").bind(normalizeInvite(body.code).replace(/^LB/, "")).run();
+    return jsonResponse({ ok: true }, 200, request);
+  }
+  return jsonResponse({ error: "Not found." }, 404, request);
 }
 
 async function handleMe(request, env) {
@@ -445,7 +624,8 @@ async function handleMe(request, env) {
   const row = await env.DB.prepare(
     `SELECT sessions.expires_at as expires_at, users.username as username, users.role as role
      FROM sessions JOIN users ON users.id = sessions.user_id
-     WHERE sessions.token = ?`
+     LEFT JOIN users p ON p.id = users.parent_id
+     WHERE sessions.token = ? AND users.status = 'approved' AND (p.id IS NULL OR p.status = 'approved')`
   )
     .bind(token)
     .first();
@@ -750,6 +930,10 @@ function answerTimeQuestion(question) {
 }
 
 async function handleAskBridge(request, env) {
+  // Only signed-in, approved accounts can talk to Bridge (added 2026-11-05).
+  if (!(await getSessionUser(request, env))) {
+    return jsonResponse({ error: "Please log in to talk to Bridge." }, 401, request);
+  }
   let body;
   try {
     body = await request.json();
@@ -915,6 +1099,20 @@ export default {
       });
     }
 
+    // Block cross-site POSTs from pages that are not ours (cookie-based sessions need this).
+    if (request.method === "POST") {
+      const origin = request.headers.get("Origin");
+      if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+        return jsonResponse({ error: "Not allowed." }, 403, request);
+      }
+    }
+
+    if (url.pathname === "/api/admin/overview" && request.method === "GET") {
+      return handleAdminOverview(request, env);
+    }
+    if (url.pathname.startsWith("/api/admin/") && request.method === "POST") {
+      return handleAdminAction(request, env, url.pathname.slice("/api/admin/".length));
+    }
     if (url.pathname === "/api/login" && request.method === "POST") {
       return handleLogin(request, env);
     }

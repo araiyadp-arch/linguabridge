@@ -434,7 +434,7 @@ function inner(em){const k=norm(em);if(ICONS[k])return ICONS[k];
   const parts=[...k].filter(x=>x!=='‍');for(const q of parts){if(ICONS[q])return ICONS[q]}return FALL}
 window.LB_iconInner=inner;
 window.LB_iconSVG=function(em,cls){return '<svg class="'+(cls||'lbico')+'" viewBox="0 0 48 48" width="1em" height="1em" aria-hidden="true" focusable="false">'+inner(em)+'</svg>'};
-const RX=/(?:\p{Regional_Indicator}{2}|[\p{Extended_Pictographic}✓✕↻])(?:[︎️\u{1F3FB}-\u{1F3FF}⃣]|‍\p{Extended_Pictographic})*/gu;
+const RX=/(?:\p{Regional_Indicator}{2}|(?![©®™‼⁉ℹ↔↕↖-↙↩↪])[\p{Extended_Pictographic}✓✕↻])(?:[︎️\u{1F3FB}-\u{1F3FF}⃣]|‍\p{Extended_Pictographic})*/gu;
 // strip emoji from non-DOM-text places (titles, placeholders)
 window.LB_noEmoji=s=>String(s).replace(RX,'').replace(/\s{2,}/g,' ').trim();
 const st=document.createElement('style');

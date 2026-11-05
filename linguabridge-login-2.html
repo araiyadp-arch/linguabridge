@@ -531,7 +531,8 @@
           return;
         }
 
-        errorMsg.textContent = 'Incorrect username or password. Please try again.';
+        const bad = await res.json().catch(function () { return {}; });
+        errorMsg.textContent = (res.status === 403 || res.status === 429) && bad.error ? bad.error : 'Incorrect username or password. Please try again.';
         errorMsg.style.display = 'block';
       } catch (err) {
         errorMsg.textContent = "Couldn't reach the login service. Please check your connection and try again.";
