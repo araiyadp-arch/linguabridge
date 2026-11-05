@@ -74,10 +74,10 @@ const BRIDGE_VOICE_CONFIG={
  // together these noticeably shift the recorded Sky/Bella/Sarah clips
  // younger-sounding, not just faster. Pronunciation mode stays a little
  // gentler than conversational so a word being taught is still clear.
- rate:{conversational:1.15,pronunciation:0.86}, // founder reported Listen/Speak on lesson pages sounding rushed (2026-10-11) --
+ rate:{conversational:1.0,pronunciation:0.9}, // founder reported Listen/Speak on lesson pages sounding rushed (2026-10-11) --
  // Sky's own recorded pace runs brisk even in its dedicated pron clips, so pronunciation-mode now plays
  // noticeably slower than the raw recording (not just "not sped up" at 1.0) so a word being taught stays clear.
- pitch:1.22,                                               // raised further for a brighter, younger-sounding read -- only directly controls the browser fallback voice (used when a clip is missing, e.g. dynamic text); recorded clips get their pitch shift from rate + preservesPitch instead, since Kokoro itself exposes no pitch control
+ pitch:1.05,                                               // raised further for a brighter, younger-sounding read -- only directly controls the browser fallback voice (used when a clip is missing, e.g. dynamic text); recorded clips get their pitch shift from rate + preservesPitch instead, since Kokoro itself exposes no pitch control
  style:{conversational:'bright',pronunciation:'clear'},    // placeholder: no style/emotion control in the current engine
  pronunciationMode:{extraClear:true,deliberate:true}
 };
@@ -121,7 +121,7 @@ function playClip(b64,t,mode,done){const a=new Audio('data:audio/mpeg;base64,'+b
  // recording. `preservesPitch`/vendor-prefixed variants default to true
  // (speed changes, pitch stays flat); setting them false lets pitch move
  // together with BRIDGE_VOICE_CONFIG.rate above.
- try{a.preservesPitch=false;a.mozPreservesPitch=false;a.webkitPreservesPitch=false}catch(e){}
+ try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){} /* 2026-11-05: founder said the voice sounded robotic; the speed-up + pitch-raise trick made it sound squeaky, so clips now play at natural speed and pitch */
  a.onended=()=>{if(done)done()};
  a.onerror=()=>{if(_failed)return;_failed=true;deviceSay(t,mode);if(done)done()};
  const r=a.play();if(r&&r.catch)r.catch(()=>{if(_failed)return;_failed=true;deviceSay(t,mode);if(done)done()})}
