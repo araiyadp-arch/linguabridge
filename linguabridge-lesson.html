@@ -183,7 +183,8 @@ function vocab(el,list,say){list.forEach(([w,hint,emoji])=>{const r=document.cre
  a.onclick=()=>bridgeSpeak(w,{mode:'pronunciation'});b.onclick=()=>tryWord(w,say,b);el.appendChild(r)})}
 function lines(arr){speakSeq(arr)}
 
-const need={5:2,7:1,8:3,9:1},got={};
+const prevC=(n>1&&advCount(s.level)>=n-1)?advFor(s.level,n-1):null,o=(prevC&&((prevC.vocab1||[]).length+(prevC.vocab2||[]).length>=3))?1:0; // o = extra review step before the lesson proper
+const need={[5+o]:2,[7+o]:1,[8+o]:3,[9+o]:1},got={};
 function gate(st,i){return()=>{(got[st]=got[st]||new Set()).add(i);upd()}}
 // Vocab, dialogue, and question content below all comes from advFor(s.level, n) (see
 // common.js). Explorer's content there is the original hand-written Chapter 1 sample; Builder,
@@ -192,6 +193,20 @@ function gate(st,i){return()=>{(got[st]=got[st]||new Set()).add(i);upd()}}
 const listenItems=C.listenItems;
 const readQ=C.readQ;
 const match=C.match;
+
+/* PREVIOUS-LESSON REVIEW (added 2026-11-05): a short warm-up built from the words of the lesson
+   just before this one, so each lesson starts by revisiting the last. Not gated, nothing graded. */
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function reviewQs(){
+ const items=[].concat(prevC.vocab1||[],prevC.vocab2||[]).filter(v=>v&&v[0]&&v[1]);
+ const uniq=[];items.forEach(v=>{if(!uniq.some(u=>u[1]===v[1]||u[0]===v[0]))uniq.push(v)});
+ return shuffle(uniq).slice(0,3).map(v=>{
+  const others=shuffle(uniq.filter(u=>u!==v)).slice(0,2),opts=shuffle([v].concat(others));
+  return {q:'Last time you learned “'+v[0]+'”. What does it mean?',options:opts.map(x=>x[1]),answer:opts.indexOf(v),
+   why:'“'+v[0]+'” means “'+v[1]+'”.',wrong:opts.map(x=>x===v?null:'That is what “'+x[0]+'” means.')}})}
+const reviewStep=el=>{const qs=reviewQs();
+ el.innerHTML='<h2 style="margin-bottom:6px">Let’s remember last time</h2><p class="muted" style="margin:0 0 14px;font-size:.92rem">A quick warm-up from Lesson '+(n-1)+': '+prevC.topic.name+'. No pressure, just see what you remember!</p><div id="rv0" style="margin-bottom:24px"></div><div id="rv1" style="margin-bottom:24px"></div><div id="rv2"></div>';
+ qs.forEach((q,i)=>mountChoices(el.querySelector('#rv'+i),q,()=>{}))};
 
 const steps=[
  el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+C.introTitle+'</h2><p class="muted" style="margin:0;line-height:1.6">'+C.introLine+'</p></div><div class="obj">'+C.objective+'</div>'},
@@ -208,7 +223,7 @@ const steps=[
   el.querySelector('#pc').onclick=()=>lines(c)},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">Listen and choose</h2><p class="muted" style="margin:0 0 14px;font-size:.92rem">Tap Play, then pick what you heard.</p><div id="li"></div>';
   listenItems.forEach((q,i)=>{const d=document.createElement('div');d.style.marginBottom='26px';d.innerHTML='<button class="mini" style="margin-bottom:14px">🔊 Play</button><div></div>';
-   d.querySelector('button').onclick=()=>speak(q.say);el.querySelector('#li').appendChild(d);mountChoices(d.querySelector('div'),q,gate(5,i))})},
+   d.querySelector('button').onclick=()=>speak(q.say);el.querySelector('#li').appendChild(d);mountChoices(d.querySelector('div'),q,gate(5+o,i))})},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">Your turn to talk!</h2><p class="muted" style="margin:0 0 12px;font-size:.92rem">You are '+C.roleplay[1][0]+'. Listen to '+C.roleplay[0][0]+', then say your lines.</p><div class="talk" id="rp"></div><p class="say" id="say" aria-live="polite"></p>';
   C.roleplay.forEach(([who,t,key])=>{
    const r=document.createElement('div');r.className='line';
@@ -217,12 +232,13 @@ const steps=[
    el.querySelector('#rp').appendChild(r)})},
  el=>{const txt=C.readPassage;
   el.innerHTML='<h2 style="margin-bottom:6px">Read it</h2><div class="readbox">'+txt+'</div><div class="actions" style="margin:14px 0 6px"><button class="mini" id="rd">🔊 Read it to me</button></div><p class="sub">Check what you read</p><div id="rq"></div>';
-  el.querySelector('#rd').onclick=()=>speak(txt);mountChoices(el.querySelector('#rq'),readQ,gate(7,0))},
+  el.querySelector('#rd').onclick=()=>speak(txt);mountChoices(el.querySelector('#rq'),readQ,gate(7+o,0))},
  el=>{el.innerHTML='<h2 style="margin-bottom:14px">Match the words</h2><div id="m0" style="margin-bottom:24px"></div><div id="m1" style="margin-bottom:24px"></div><div id="m2"></div>';
-  match.forEach((q,i)=>mountChoices(el.querySelector('#m'+i),q,gate(8,i)))},
- el=>{LB_mountLessonGame(el,C,s.level,gate(9,0))},
+  match.forEach((q,i)=>mountChoices(el.querySelector('#m'+i),q,gate(8+o,i)))},
+ el=>{LB_mountLessonGame(el,C,s.level,gate(9+o,0))},
  el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+(review?'Nice review!':"You're ready for the quiz!")+'</h2><p class="muted" style="margin:0 0 14px;line-height:1.6">'+C.readyLine+'</p><p class="muted" style="margin:0;line-height:1.6">'+(review?'Come back to any lesson whenever you like.':"Five short questions, and you'll earn your badge.")+'</p></div>'}
 ];
+if(o)steps.splice(1,0,reviewStep);
 const stage=document.getElementById('stage'),nx=document.getElementById('next'),bk=document.getElementById('back'),dots=document.getElementById('dots');
 let step=0;steps.forEach(()=>dots.appendChild(document.createElement('span')));
 function upd(){const g=need[step];nx.disabled=!!g&&(!got[step]||got[step].size<g);

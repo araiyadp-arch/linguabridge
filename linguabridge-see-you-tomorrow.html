@@ -121,10 +121,9 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
           <circle cx="338" cy="126" r="14" fill="#ffffff" stroke="#159FE8" stroke-width="4"/>
         </g>
       </svg></div>
-<h1>See you tomorrow!</h1>
+<h1>Great work today!</h1>
 <p class="muted" style="max-width:44ch;margin:16px auto 0;line-height:1.7" id="txt"></p>
-<div class="actions"><a class="btn btn-primary" href="linguabridge-dashboard.html">Back to My Learning</a><a class="btn btn-secondary" href="linguabridge-homepage.html">Go to Home</a></div>
-<div class="note" style="text-align:left"><strong>Placeholder.</strong> There is no log-out or sign-in behind this yet. Log In is still a placeholder page.</div>
+<div class="actions"><a class="btn btn-primary" href="linguabridge-lesson.html">Next lesson</a><a class="btn btn-secondary" href="linguabridge-dashboard.html">Back to My Learning</a><a class="btn btn-secondary" href="linguabridge-homepage.html">Go to Home</a></div>
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
@@ -133,7 +132,7 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 // locked the next one (comes back tomorrow) or whether they can keep
 // going right away. Restored 2026-10-30: lost in the same
 // translator-removal regression described in 150b41d.
-document.getElementById('txt').textContent=LB.LOCK?"Your progress is saved. Your next lesson opens tomorrow. If you miss a day, that's okay. Your progress stays right where you left it.":"Your progress is saved. Come back tomorrow for more, or keep going whenever you're ready. Your progress stays right where you left it.";
+document.getElementById('txt').textContent="Your progress is saved. Keep going whenever you're ready, or take a break and come back later. Your progress stays right where you left it.";
 </script>
 
 </body></html>

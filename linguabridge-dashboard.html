@@ -173,6 +173,12 @@ details.proto .btn{padding:8px 18px;font-size:.88rem}
  <div class="actions" style="margin-bottom:0"><a id="startBtn" class="btn btn-primary" href="linguabridge-lesson.html">Start today's lesson</a></div>
 </section>
 
+<section class="card" aria-labelledby="lvlPickTitle">
+ <h2 id="lvlPickTitle" style="font-size:1.35rem;margin-bottom:6px">Choose your level</h2>
+ <p class="muted" style="margin:0 0 16px;font-size:.92rem">Every level is open. Start where you feel comfortable, and switch any time. Your progress in each level is kept.</p>
+ <div class="shelf" id="levelPicker"></div>
+</section>
+
 <section class="card" aria-labelledby="badgeTitle">
  <h2 id="badgeTitle" style="font-size:1.35rem;margin-bottom:6px">My badges</h2>
  <p class="muted" style="margin:0 0 16px;font-size:.92rem">Every lesson you finish earns a badge. You can review any finished lesson, and reviewing never changes your badges.</p>
@@ -185,9 +191,7 @@ details.proto .btn{padding:8px 18px;font-size:.88rem}
  <ol class="chapters" id="chapters"></ol>
 </section>
 
-<div class="note"><strong>Placeholder screen.</strong> Still undecided, so not built: final level artwork, how lessons are grouped inside each Adventure, Bridge's full message library, teacher/school views, and how the placement result and log-in feed into this page (until then it starts on Explorer). Chapter titles and Adventure counts come straight from the approved curriculum. <strong>Bridge now speaks with recorded natural-sounding voice clips (the same on every device); use the voice picker below to compare the three voices. <strong>The one-lesson-per-day lock is currently OFF</strong> so every lesson can be tested. It is one setting (<code>LOCK</code>) to switch back on.</strong></div>
-
-<details class="proto" open><summary>Prototype tools (design review only, not part of the student experience)</summary>
+<details class="proto" id="protoTools" style="display:none"><summary>Prototype tools (design review only, not part of the student experience)</summary>
  <p class="muted" style="font-size:.9rem;margin:14px 0 4px">Badge style for each level (lesson 1 shown):</p>
  <div class="shelf" id="gallery"></div>
  <div class="row">
@@ -238,10 +242,18 @@ vs.value=AUDIO.voice();
 const TESTLINE="Hello! I'm Bridge. Let's learn together.";
 vs.onchange=()=>{const st=LB.get();st.voice=vs.value;LB.set(st);speak(TESTLINE)};
 document.getElementById('voiceTest').onclick=()=>speak(TESTLINE);
+
+// Level picker: every level is open (daily lock and level gating removed 2026-11-05).
+(function(){const lp=document.getElementById('levelPicker');if(!lp)return;
+ Object.keys(LEVELS).forEach(k=>{const lv=LEVELS[k],done=s.completed.filter(c=>c.level===k).length,total=advCount(k);
+  const f=document.createElement('figure');f.style.cssText='text-align:center;'+(k===s.level?'outline:3px solid #159FE8;border-radius:16px;padding:8px;':'padding:8px;');
+  f.innerHTML='<div style="font-size:2rem" aria-hidden="true">'+lv.emoji+'</div><figcaption style="font-weight:600">'+lv.name+'</figcaption><div class="muted" style="font-size:.85rem;margin-bottom:8px">'+done+' of '+total+' lessons</div>';
+  const b=document.createElement('button');b.className='btn '+(k===s.level?'btn-primary':'btn-secondary');b.textContent=k===s.level?'You are here':'Open';
+  b.onclick=()=>{if(k===s.level)return;const st=LB.get();st.level=k;LB.set(st);location.reload()};f.appendChild(b);lp.appendChild(f)})})();
 const sel=document.getElementById('lvlSel');sel.value=s.level;
 sel.onchange=()=>{s.level=sel.value;LB.set(s);location.reload()};
 document.getElementById('nextDay').onclick=()=>{s.dayOffset=(s.dayOffset||0)+1;LB.set(s);location.reload()};
-document.getElementById('reset').onclick=()=>{s.completed=[];s.dayOffset=0;delete s.justPassed;LB.set(s);location.reload()};
+document.getElementById('reset').onclick=async()=>{await LB.resetAll();location.reload()};
 
 
 // Founder-only voice compare panel: reveal it if the authenticated user is
@@ -265,6 +277,7 @@ if (window.LB_AUTH_PROMISE) {
       }
     }
     if (data && data.role === 'founder') {
+      var protoT = document.getElementById('protoTools'); if (protoT) protoT.style.display = '';
       var panel = document.getElementById('founderVoicePanel');
       if (panel) {
         panel.style.display = 'block';

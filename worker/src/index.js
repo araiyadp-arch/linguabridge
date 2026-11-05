@@ -28,6 +28,8 @@
  *   POST /api/children    { username, pin } -> creates a CHILD login under
  *        the signed-in parent (no email collected from the child at all).
  *        Both require a valid parent session cookie.
+ *   GET/POST /api/progress -> per-user lesson progress saved to D1 (see
+ *        "Progress saving" section below), added 2026-11-05.
  *   POST /api/ask-bridge  { question, level?, lessonTopic? } -> { answer }
  *        "Ask Bridge" — lets a student type a question to Bridge and get a
  *        real answer, using Cloudflare Workers AI (no external API key
@@ -829,6 +831,72 @@ async function handleAskBridge(request, env) {
   return jsonResponse({ answer }, 200, request);
 }
 
+// ---------------------------------------------------------------------
+// Progress saving (added 2026-11-05)
+// Each signed-in user (student child login, parent, or founder) gets one
+// row in `progress` holding their lesson progress as a JSON blob, so it
+// follows their login across devices and survives cleared browser data.
+//   GET  /api/progress            -> { data: <object|null>, updated_at }
+//   POST /api/progress { data }   -> { ok: true, updated_at }
+// Table (run once in D1):
+//   CREATE TABLE IF NOT EXISTS progress (
+//     user_id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL);
+// ---------------------------------------------------------------------
+const PROGRESS_MAX_BYTES = 60000;
+
+async function handleGetProgress(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ error: "Not signed in." }, 401, request);
+  const row = await env.DB.prepare("SELECT data, updated_at FROM progress WHERE user_id = ?")
+    .bind(user.id)
+    .first();
+  if (!row) return jsonResponse({ data: null, updated_at: 0 }, 200, request);
+  let data = null;
+  try { data = JSON.parse(row.data); } catch (e) {}
+  return jsonResponse({ data, updated_at: row.updated_at }, 200, request);
+}
+
+async function handleSaveProgress(request, env) {
+  const user = await getSessionUser(request, env);
+  if (!user) return jsonResponse({ error: "Not signed in." }, 401, request);
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return jsonResponse({ error: "Bad request." }, 400, request);
+  }
+  const data = body && body.data;
+  if (!data || typeof data !== "object" || Array.isArray(data) || !Array.isArray(data.completed)) {
+    return jsonResponse({ error: "Bad progress data." }, 400, request);
+  }
+  // Keep only the fields progress actually uses, so nothing else can be stored.
+  const clean = {
+    level: typeof data.level === "string" ? data.level.slice(0, 20) : "explorer",
+    completed: data.completed.slice(0, 1000).map((c) => ({
+      level: String(c && c.level || "").slice(0, 20),
+      n: Number(c && c.n) || 0,
+      date: String(c && c.date || "").slice(0, 10),
+      score: c && typeof c.score === "number" ? c.score : undefined,
+      total: c && typeof c.total === "number" ? c.total : undefined,
+    })),
+    voice: typeof data.voice === "string" ? data.voice.slice(0, 20) : undefined,
+    quizHistory: Array.isArray(data.quizHistory) ? data.quizHistory.slice(-30).map((q) => ({
+      level: String(q && q.level || "").slice(0, 20),
+      n: Number(q && q.n) || 0,
+      score: Number(q && q.score) || 0,
+      total: Number(q && q.total) || 0,
+    })) : undefined,
+  };
+  const json = JSON.stringify(clean);
+  if (json.length > PROGRESS_MAX_BYTES) {
+    return jsonResponse({ error: "Progress too large." }, 413, request);
+  }
+  const now = Date.now();
+  await env.DB.prepare(
+    "INSERT INTO progress (user_id, data, updated_at) VALUES (?, ?, ?) " +
+    "ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at"
+  ).bind(user.id, json, now).run();
+  return jsonResponse({ ok: true, updated_at: now }, 200, request);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -862,6 +930,12 @@ export default {
     }
     if (url.pathname === "/api/children" && request.method === "POST") {
       return handleCreateChild(request, env);
+    }
+    if (url.pathname === "/api/progress" && request.method === "GET") {
+      return handleGetProgress(request, env);
+    }
+    if (url.pathname === "/api/progress" && request.method === "POST") {
+      return handleSaveProgress(request, env);
     }
     if (url.pathname === "/api/ask-bridge" && request.method === "POST") {
       return handleAskBridge(request, env);

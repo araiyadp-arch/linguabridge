@@ -4,12 +4,14 @@
    see-you-tomorrow) -- extracted so it's downloaded/cached once instead of six
    times. No logic changed from the original inline version. */
 const LB={
- /* DAILY LOCK: one-lesson-per-day rule, turned on per the founder's request. */
- LOCK:true,
+ /* DAILY LOCK: one-lesson-per-day rule. Turned OFF 2026-11-05 at the founder's request:
+    students may do as many lessons as they like; Bridge suggests breaks instead (see break reminder). */
+ LOCK:false,
  KEY:'lb_student_v1',
  get(){let s={};try{s=JSON.parse(localStorage.getItem(this.KEY))||{}}catch(e){}
   return Object.assign({level:'explorer',completed:[],dayOffset:0},s)},
- set(s){try{localStorage.setItem(this.KEY,JSON.stringify(s))}catch(e){}},
+ set(s){try{localStorage.setItem(this.KEY,JSON.stringify(s))}catch(e){}
+  if(typeof this._dirty==='function')this._dirty()},
  today(s){const d=new Date();d.setDate(d.getDate()+(s.dayOffset||0));
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},
  doneToday(s){return s.completed.some(c=>c.date===this.today(s))},
@@ -480,3 +482,162 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
     init();
   }
 })();
+
+
+/* ---------------------------------------------------------------------
+   ACCOUNT PROGRESS SYNC (added 2026-11-05)
+   Progress is still kept in localStorage (instant, works offline), and is now
+   ALSO saved to the signed-in student's account (GET/POST /api/progress on the
+   Worker) so it follows their login to any device and survives cleared browser
+   data. Rules:
+   - The local copy is tagged with `owner` (the username). If a different person
+     signs in on the same device, the previous person's local copy is NOT merged
+     into the new account -- the new account's saved progress is loaded instead.
+   - Merging two copies of the same account = union of finished lessons.
+   - If the server can't be reached (offline, or the Worker not updated yet),
+     everything keeps working from the local copy and syncs later.
+   --------------------------------------------------------------------- */
+(function(){
+ const API='https://api.lingua-bridge.us';
+ let authed=false,timer=null,owner=null;
+ function clean(s){return {level:s.level,completed:s.completed,voice:s.voice,quizHistory:s.quizHistory}}
+ function key(c){return c.level+':'+c.n}
+ function merge(a,b){ // union of finished lessons, earliest date wins
+  const m={};(a.completed||[]).concat(b.completed||[]).forEach(c=>{if(!c||!c.level)return;const k=key(c);if(!m[k]||(c.date&&c.date<m[k].date))m[k]=c});
+  const hist=(a.quizHistory||[]).concat(b.quizHistory||[]).filter((q,i,arr)=>arr.findIndex(z=>z.level===q.level&&z.n===q.n&&z.score===q.score)===i).slice(-30);
+  return Object.assign({},b,a,{completed:Object.values(m),quizHistory:hist})}
+ async function push(){
+  if(!authed)return;
+  try{await fetch(API+'/api/progress',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:clean(LB.get())}),keepalive:true})}catch(e){}}
+ LB._dirty=function(){if(!authed)return;clearTimeout(timer);timer=setTimeout(push,1200)};
+ LB.pushNow=push;
+ /* founder-only "reset all progress": clears this account's saved copy too. */
+ LB.resetAll=async function(){const st=LB.get();st.completed=[];st.quizHistory=[];delete st.justPassed;st.dayOffset=0;
+  try{localStorage.setItem(LB.KEY,JSON.stringify(st))}catch(e){} await push()};
+ async function run(){
+  if(!window.LB_AUTH_PROMISE)return;
+  let me;try{me=await window.LB_AUTH_PROMISE}catch(e){return}
+  if(!me||!me.authenticated||!me.username)return;
+  owner=me.username;authed=true;
+  let local=LB.get(),before=JSON.stringify(clean(local));
+  if(local.owner&&local.owner!==owner)local={level:'explorer',completed:[],dayOffset:0}; // someone else's leftovers on this device
+  let server=null;
+  try{const r=await fetch(API+'/api/progress',{credentials:'include'});if(r.ok){const j=await r.json();server=j&&j.data}else if(r.status===404){authed=false;return}}catch(e){authed=false;return}
+  let merged=server?merge(local,{level:server.level,completed:server.completed||[],voice:server.voice,quizHistory:server.quizHistory||[]}):local;
+  if(local.owner!==owner&&server){merged.level=server.level||merged.level;if(server.voice)merged.voice=server.voice}
+  merged.owner=owner;
+  try{localStorage.setItem(LB.KEY,JSON.stringify(Object.assign({level:'explorer',completed:[],dayOffset:0},merged)))}catch(e){}
+  const after=JSON.stringify(clean(LB.get()));
+  if(!server||after!==JSON.stringify(clean(server)))await push();
+  if(after!==before){ // page already drew itself from the old copy: redraw once
+   const last=+sessionStorage.getItem('lb_sync_reload')||0;
+   if(Date.now()-last>15000){try{sessionStorage.setItem('lb_sync_reload',String(Date.now()))}catch(e){} location.reload()}}
+ }
+ window.addEventListener('pagehide',()=>{if(authed&&timer){clearTimeout(timer);push()}});
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);else run();
+})();
+
+/* ---------------------------------------------------------------------
+   BRIDGE BREAK REMINDER (added 2026-11-05)
+   With the one-lesson-per-day rule removed, Bridge gently checks in instead:
+   after every 15 minutes of active learning (counted across all lesson-flow
+   pages, only while the tab is visible, and not counting gaps of 10+ minutes
+   away) a friendly pop-up asks whether to take a break or keep going.
+   --------------------------------------------------------------------- */
+(function(){
+ const KEY='lb_active_v1',EVERY=15*60*1000,GAP=10*60*1000;
+ function load(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}}
+ function save(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
+ let shown=false;
+ function overlay(html){const d=document.createElement('div');d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');
+  d.style.cssText='position:fixed;inset:0;background:rgba(11,59,107,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit';
+  d.innerHTML='<div style="background:#fff;border-radius:22px;max-width:420px;width:100%;padding:26px 22px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.25)">'+html+'</div>';
+  document.body.appendChild(d);return d}
+ function ask(mins){
+  if(shown)return;shown=true;
+  const d=overlay('<div style="font-size:2.4rem" aria-hidden="true">⏰</div><h2 style="margin:8px 0;color:#0B3B6B">You have been learning for '+mins+' minutes!</h2><p style="color:#445;line-height:1.6;margin:0 0 18px">Great job! This is Bridge checking in. Would you like to take a break, or keep going?</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button id="lbBrk" style="background:#159FE8;color:#fff;border:0;border-radius:999px;padding:12px 22px;font-size:1rem;font-weight:600;cursor:pointer">Take a break</button><button id="lbKeep" style="background:#EAF5FD;color:#0B3B6B;border:0;border-radius:999px;padding:12px 22px;font-size:1rem;font-weight:600;cursor:pointer">Keep going</button></div>');
+  d.querySelector('#lbKeep').onclick=()=>{d.remove();shown=false};
+  d.querySelector('#lbBrk').onclick=()=>{d.innerHTML='<div style="background:#fff;border-radius:22px;max-width:420px;width:100%;padding:26px 22px;text-align:center"><div style="font-size:2.4rem" aria-hidden="true">💧</div><h2 style="margin:8px 0;color:#0B3B6B">Good idea!</h2><p style="color:#445;line-height:1.6;margin:0 0 18px">Stretch, drink some water, and rest your eyes. Your progress is saved. Come back whenever you are ready.</p><a href="linguabridge-dashboard.html" style="display:inline-block;background:#159FE8;color:#fff;border-radius:999px;padding:12px 22px;font-weight:600;text-decoration:none">Back to My Learning</a> <button id="lbBack" style="background:#EAF5FD;color:#0B3B6B;border:0;border-radius:999px;padding:12px 22px;font-size:1rem;font-weight:600;cursor:pointer">I am ready again</button></div>';
+   d.querySelector('#lbBack').onclick=()=>{d.remove();shown=false}}}
+ function tick(){
+  if(document.hidden)return;
+  const now=Date.now(),a=load();
+  if(a.last&&now-a.last<GAP){a.ms=(a.ms||0)+(now-a.last)}else{a.ms=a.last?0:(a.ms||0);if(a.last&&now-a.last>=GAP){a.ms=0;a.asked=0}}
+  a.last=now;
+  const due=Math.floor((a.ms||0)/EVERY);
+  if(due>(a.asked||0)){a.asked=due;save(a);ask(due*15)}else save(a)}
+ window.LB_breakTest=ask;
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setInterval(tick,5000));else setInterval(tick,5000);
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){const a=load();a.last=0;save(a)}});
+})();
+
+/* ---------------------------------------------------------------------
+   ADAPTIVE QUIZ DIFFICULTY (added 2026-11-05)
+   Every quiz records how many questions were answered correctly on the first
+   try (LB.get().quizHistory). When a student's recent quizzes go well, Bridge
+   adds challenge questions built from the lesson's OWN words and sentences, so
+   they are always grounded in what was taught:
+     tier 1 (last 3 quizzes avg >= 85%):  +3 questions (4-choice meaning questions)
+     tier 2 (last 5 quizzes avg >= 95%):  +5 questions (adds listen-and-type
+                                           spelling and complete-the-line typing)
+   Because challenge answers count toward the score, a student who finds them
+   too hard drops back to the normal 5 on their own. Nothing is graded.
+   --------------------------------------------------------------------- */
+LB.tier=function(level){
+ const h=(LB.get().quizHistory||[]).filter(q=>q.level===level&&q.total>0);
+ const acc=a=>a.reduce((t,q)=>t+q.score/q.total,0)/a.length;
+ const last5=h.slice(-5),last3=h.slice(-3);
+ if(last5.length>=5&&acc(last5)>=0.95)return 2;
+ if(last3.length>=3&&acc(last3)>=0.85)return 1;
+ return 0};
+LB.recordQuiz=function(level,n,score,total){
+ const st=LB.get();st.quizHistory=(st.quizHistory||[]).filter(q=>!(q.level===level&&q.n===n)).concat([{level,n,score,total}]).slice(-30);LB.set(st)};
+function LB_shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+/* Typed answer: sentence/prompt, an input, a hint after a miss, the answer shown after three misses. */
+function LB_mountTyped(el,q,onCorrect){
+ el.innerHTML='<p style="font-family:var(--font-head);font-size:1.3rem;color:var(--navy);margin:0 0 12px;line-height:1.4"></p><p class="muted" style="margin:0 0 12px;font-size:.95rem"></p><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"><button class="mini" type="button" style="display:none">Listen</button><input type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="Type your answer" style="flex:1;min-width:160px;font-size:1.1rem;padding:12px 14px;border:2px solid #BFD9EE;border-radius:14px"><button class="btn btn-primary" type="button">Check</button></div><p class="feedback" aria-live="polite"></p>';
+ const [pq,hint]=el.querySelectorAll('p'),inp=el.querySelector('input'),fb=el.querySelector('.feedback'),btns=el.querySelectorAll('button'),listen=btns[0],chk=btns[1];
+ pq.textContent=q.q;hint.textContent=q.hint||'';
+ if(q.say){listen.style.display='';listen.textContent='Listen';listen.onclick=()=>bridgeSpeak(q.say,{mode:'pronunciation'});setTimeout(()=>{try{bridgeSpeak(q.say,{mode:'pronunciation'})}catch(e){}},300)}
+ let misses=0,done=false;const norm=x=>String(x).toLowerCase().replace(/[^a-z0-9]/g,'');
+ function check(){if(done)return;const v=norm(inp.value);if(!v){inp.focus();return}
+  if(v===norm(q.answer)){done=true;inp.disabled=true;chk.disabled=true;fb.className='feedback ok';fb.textContent='Yes! '+q.why;onCorrect()}
+  else{misses++;el.dataset.missed='1';fb.className='feedback retry';
+   if(misses>=3){done=true;inp.value=q.answer;inp.disabled=true;chk.disabled=true;fb.textContent='The answer is “'+q.answer+'”. '+q.why+' You can do it next time!';onCorrect()}
+   else fb.textContent='Good try! '+(misses===1?('Hint: it starts with “'+q.answer[0]+'”.'):('Hint: it has '+q.answer.length+' letters and starts with “'+q.answer[0]+'”.'))+' Try again!'}}
+ chk.onclick=check;inp.onkeydown=e=>{if(e.key==='Enter')check()};setTimeout(()=>{try{inp.focus()}catch(e){}},50)}
+
+LB.challenge=function(level,n,tier){
+ if(!tier)return [];
+ const C=advFor(level,n);
+ const items=[].concat(C.vocab1||[],C.vocab2||[]).filter(v=>v&&v[0]&&v[1]);
+ (C.whenSayIt||[]).forEach(w=>{if(w&&w[0]&&w[1])items.push([w[0],w[1]])});
+ let pool=items.slice();
+ [n-1,n+1].forEach(k=>{if(k>=1&&k<=advCount(level)){const D=advFor(level,k);[].concat(D.vocab1||[],D.vocab2||[]).forEach(v=>{if(v&&v[0]&&v[1])pool.push(v)})}});
+ const uniq=a=>{const o=[];a.forEach(v=>{if(!o.some(u=>u[0].toLowerCase()===v[0].toLowerCase()||u[1].toLowerCase()===v[1].toLowerCase()))o.push(v)});return o};
+ const mine=uniq(items),all=uniq(items.concat(pool));
+ const out=[];
+ function choiceQ(v,reverse){
+  const others=LB_shuffle(all.filter(u=>u!==v&&u[0].toLowerCase()!==v[0].toLowerCase()&&u[1].toLowerCase()!==v[1].toLowerCase())).slice(0,3);
+  if(others.length<3)return null;
+  const opts=LB_shuffle([v].concat(others));
+  return reverse?
+   {q:'Which word or phrase means “'+v[1]+'”?',options:opts.map(x=>x[0]),answer:opts.indexOf(v),why:'“'+v[0]+'” means “'+v[1]+'”.',wrong:opts.map(x=>x===v?null:'“'+x[0]+'” means “'+x[1]+'”.')}:
+   {q:'What does “'+v[0]+'” mean?',options:opts.map(x=>x[1]),answer:opts.indexOf(v),why:'“'+v[0]+'” means “'+v[1]+'”.',wrong:opts.map(x=>x===v?null:'That is what “'+x[0]+'” means.')}}
+ const shuffled=LB_shuffle(mine);
+ const nChoice=tier===1?3:2;
+ for(let i=0;i<shuffled.length&&out.length<nChoice;i++){const q=choiceQ(shuffled[i],i%2===1);if(q){q.kind='choice';out.push(q)}}
+ if(tier>=2){
+  // listen-and-type: single words only
+  const singles=LB_shuffle(mine.filter(v=>/^[A-Za-z]{3,12}$/.test(v[0].trim())));
+  for(let i=0;i<singles.length&&out.length<nChoice+1;i++){const v=singles[i];
+   out.push({kind:'typed',q:'Listen, then type the word you hear.',say:v[0],hint:'Tap Listen to hear it again.',answer:v[0].toLowerCase(),why:'“'+v[0]+'” means “'+v[1]+'”.'})}
+  // complete-the-line: blank one taught word in a conversation line
+  const words=mine.map(v=>v[0].trim()).filter(w=>/^[A-Za-z]{3,12}$/.test(w));
+  const lines=LB_shuffle((C.conversation||[]).map(c=>c[1]));
+  for(let i=0;i<lines.length&&out.length<nChoice+3;i++){
+   const line=lines[i],w=words.find(x=>new RegExp('\\b'+x+'\\b','i').test(line));
+   if(!w)continue;const m=line.match(new RegExp('\\b'+w+'\\b','i'))[0];
+   out.push({kind:'typed',q:'Type the missing word: '+line.replace(new RegExp('\\b'+w+'\\b','i'),'_____'),hint:'It starts with “'+m[0]+'” and has '+m.length+' letters.',answer:m.toLowerCase(),why:'The line is: “'+line+'”'})}
+ }
+ return out};

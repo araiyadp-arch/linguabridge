@@ -102,9 +102,9 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 <main class="wrap"><div class="main">
 <div class="center" style="margin-bottom:22px"><h1>Lesson</h1><p class="muted" style="margin:10px 0 0" id="qcount"></p></div>
 <div class="step-dots" id="dots" aria-hidden="true"></div>
+<p id="tierNote" class="muted" style="display:none;margin:0 0 12px;line-height:1.6"></p>
 <section class="card" id="qbox"></section>
 <div class="actions" style="margin-top:0"><button class="btn btn-primary" id="next" disabled>Next question</button></div>
-<div class="note"><strong>Placeholder quiz.</strong> These five sample questions match the sample lesson. The real question bank and any pass mark have not been decided. For now, a wrong answer gets a kind explanation of why it doesn't fit and an invitation to try again, so every student can finish and nothing is graded.</div>
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
@@ -116,14 +116,20 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 const s=LB.get(),p=new URLSearchParams(location.search),review=p.get('review'),n=review?+review:(+p.get('n')||s.completed.filter(c=>c.level===s.level).length+1);
 if(!review&&((LB.LOCK&&LB.doneToday(s)&&!LB.isFounder())||n>advCount(s.level)))location.replace('linguabridge-dashboard.html');
 const C=advFor(s.level,n);
-const Q=C.quiz;
-let i=0;const box=document.getElementById('qbox'),nx=document.getElementById('next'),dots=document.getElementById('dots');
+// Adaptive difficulty (2026-11-05): after a run of strong quizzes Bridge adds challenge
+// questions built from this lesson's own words. ?tier=1|2 forces it in review mode for checking.
+const forced=+p.get('tier')||0,tier=review?forced:LB.tier(s.level);
+const base=C.quiz,extra=LB.challenge(s.level,n,tier),Q=base.concat(extra);
+let i=0,firstTry=0;const box=document.getElementById('qbox'),nx=document.getElementById('next'),dots=document.getElementById('dots');
+if(extra.length){const t=document.getElementById('tierNote');t.style.display='';t.textContent='You have been doing really well, so Bridge added '+extra.length+' challenge question'+(extra.length>1?'s':'')+' at the end. You can do it!'}
 Q.forEach(()=>dots.appendChild(document.createElement('span')));
-function show(){document.getElementById('qcount').textContent='Question '+(i+1)+' of '+Q.length;
+function show(){const isCh=i>=base.length;document.getElementById('qcount').textContent=(isCh?'Challenge ':'Question ')+(isCh?(i-base.length+1)+' of '+extra.length:(i+1)+' of '+Q.length);
  [...dots.children].forEach((d,k)=>d.classList.toggle('on',k<=i));
  nx.disabled=true;nx.textContent=i===Q.length-1?'See my badge':'Next question';
- mountChoices(box,Q[i],()=>{nx.disabled=false;nx.focus()});window.scrollTo({top:0})}
-nx.onclick=()=>{if(i<Q.length-1){i++;show()}else if(review){location.href='linguabridge-dashboard.html'}else{const st=LB.get();st.justPassed=n;LB.set(st);location.href='linguabridge-badge.html'}};
+ delete box.dataset.missed;
+ const done=()=>{const missed=box.dataset.missed==='1'||!!box.querySelector('.tryagain');if(!missed)firstTry++;nx.disabled=false;nx.focus()};
+ (Q[i].kind==='typed'?LB_mountTyped:mountChoices)(box,Q[i],done);window.scrollTo({top:0})}
+nx.onclick=()=>{if(i<Q.length-1){i++;show()}else if(review){location.href='linguabridge-dashboard.html'}else{LB.recordQuiz(s.level,n,firstTry,Q.length);const st=LB.get();st.justPassed=n;LB.set(st);location.href='linguabridge-badge.html'}};
 show();
 
 </script>
