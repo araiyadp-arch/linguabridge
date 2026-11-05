@@ -42,7 +42,7 @@ function badgeSVG(level,n,icon,size){
  return '<svg class="lbbadge" width="'+(size||150)+'" viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'+level+' badge, lesson '+n+'">'+
   '<defs><linearGradient id="'+id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+P[0]+'"/><stop offset="1" stop-color="'+P[1]+'"/></linearGradient></defs>'+
   shape+'<circle cx="100" cy="'+cy+'" r="42" fill="#fff"/><circle cx="100" cy="'+cy+'" r="42" fill="none" stroke="'+P[0]+'" stroke-width="3"/>'+
-  '<text x="100" y="'+(cy+16)+'" text-anchor="middle" font-size="46">'+icon+'</text>'+
+  (window.LB_iconInner?'<svg x="66" y="'+(cy-34)+'" width="68" height="68" viewBox="0 0 48 48">'+window.LB_iconInner(icon)+'</svg>':'')+
   '<rect x="44" y="170" width="112" height="28" rx="14" fill="'+P[2]+'" stroke="#fff" stroke-width="3"/>'+
   '<text x="100" y="189" text-anchor="middle" font-family="Lexend,sans-serif" font-size="13" font-weight="700" fill="#fff" letter-spacing=".5">LESSON '+n+'</text>'+
   spark(22,44,0)+spark(180,70,.7)+spark(170,20,1.3)+'</svg>';
