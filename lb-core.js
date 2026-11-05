@@ -238,15 +238,14 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
  const tier={explorer:1,builder:2,communicator:3,leader:4}[level]||1;
  const items=LB_gameItems(lesson,tier>=4?8:tier>=2?6:4);
  if(tier===1){el.innerHTML='<h2 style="margin-bottom:6px">Picture Match</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountMatchGame(box,items,onAllDone);return}
- if(tier===2){el.innerHTML='<h2 style="margin-bottom:6px">Memory Flip</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountMemoryGame(box,items,onAllDone);return}
+ if(tier===2){el.innerHTML='<h2 style="margin-bottom:6px">Picture Match</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountMatchGame(box,items,onAllDone);return} /* Memory Flip removed 2026-11-05 at the founder's request */
  if(tier===3){el.innerHTML='<h2 style="margin-bottom:6px">Fill in the Blank</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone);return}
  // leader: all three games back to back, hardest tier gets more items and no earlier-tier skip
  el.innerHTML='<h2 style="margin-bottom:6px" id="lbGameTitle">Picture Match</h2><div id="lbGameBox"></div>';
  const titleEl=el.querySelector('#lbGameTitle'),box=el.querySelector('#lbGameBox');
  const stages=[
-  ()=>{titleEl.textContent='Picture Match (1 of 3)';LB_mountMatchGame(box,items,next)},
-  ()=>{titleEl.textContent='Memory Flip (2 of 3)';LB_mountMemoryGame(box,items,next)},
-  ()=>{titleEl.textContent='Fill in the Blank (3 of 3)';LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone)}
+  ()=>{titleEl.textContent='Picture Match (1 of 2)';LB_mountMatchGame(box,items,next)},
+  ()=>{titleEl.textContent='Fill in the Blank (2 of 2)';LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone)}
  ];
  let stage=0;function next(){stage++;if(stage<stages.length)stages[stage]()}
  stages[0]()}
