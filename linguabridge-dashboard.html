@@ -130,12 +130,10 @@ details.proto .btn{padding:8px 18px;font-size:.88rem}
 <div id="founderVoicePanel" class="card" style="display:none; margin-bottom:26px; padding:22px 26px;">
   <span class="placeholder-badge">Founder tool — not shown to students</span>
   <h3 style="margin:12px 0 6px; font-family:var(--font-head); color:var(--navy);">Compare Bridge's voice</h3>
-  <p class="muted" style="margin:0 0 16px;">Tap each one to hear the same greeting. Whichever sounds most kid-friendly to you, let your developer know and it'll become the voice everywhere on the site.</p>
+  <p class="muted" style="margin:0 0 16px;">Preview the two voices. Bella reads the lessons and games. Daniel reads Ask Bridge answers when a student taps Listen.</p>
   <div class="btns" style="display:flex; flex-wrap:wrap; gap:10px;">
-    <button type="button" class="btn btn-secondary" data-voice="sarah">&#9654; Sarah (clear &amp; friendly)</button>
-    <button type="button" class="btn btn-primary" data-voice="bella">&#9654; Bella (warm &amp; natural &mdash; current default)</button>
-    <button type="button" class="btn btn-secondary" data-voice="sky">&#9654; Sky (bright &amp; energetic)</button>
-    <button type="button" class="btn btn-secondary" data-voice="daniel">&#9654; Daniel (friendly guy &mdash; device voice)</button>
+    <button type="button" class="btn btn-primary" data-voice="bella">&#9654; Bella (lessons and games)</button>
+    <button type="button" class="btn btn-secondary" data-voice="daniel">&#9654; Daniel (Ask Bridge chat)</button>
   </div>
 </div>
 <div id="founderLessonBrowser" class="card" style="display:none; margin-bottom:26px; padding:22px 26px;">
@@ -287,10 +285,10 @@ if (window.LB_AUTH_PROMISE) {
         panel.querySelectorAll('[data-voice]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             var voiceId = btn.getAttribute('data-voice');
+            // Preview only: Bella always reads lessons/games, Daniel always reads Ask Bridge answers.
             var s = LB.get();
-            s.voice = voiceId;
-            LB.set(s);
-            bridgeSpeak('Hello', { mode: 'conversational' });
+            if (s.voice) { delete s.voice; LB.set(s); }
+            bridgeSpeak('Hello, I am Bridge! Welcome to LinguaBridge.', voiceId === 'daniel' ? { voice: 'daniel' } : { mode: 'conversational' });
           });
         });
       }
