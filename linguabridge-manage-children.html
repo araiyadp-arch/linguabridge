@@ -451,7 +451,7 @@
      ============================================================ -->
 <header class="page-hero">
   <h1>Manage My Kids</h1>
-  <p>Create a username and PIN for each of your kids. No email needed for them — they just log in with the username and PIN you set here, at the same Log In page you use.</p>
+  <p>Create a unique username and password for each of your kids. No email needed for them — they just log in with the username and password you set here, at the same Log In page you use.</p>
 </header>
 
 <!-- ============================================================
@@ -464,14 +464,14 @@
 <section class="manage-section">
   <div class="manage-card">
     <h2>Your Kids</h2>
-    <p class="card-sub">Each one logs in with their own username and PIN.</p>
+    <p class="card-sub">Each one logs in with their own username and password.</p>
     <div id="childList"></div>
     <p class="empty-note" id="emptyNote" style="display:none;">You haven't added a child yet — add one below to get started.</p>
   </div>
 
   <div class="manage-card">
     <h2>Add a Child</h2>
-    <p class="card-sub">Pick a username and a 4-6 digit PIN together with your child. Nothing else is collected from them.</p>
+    <p class="card-sub">Pick a username and a password (8+ characters with a letter, a number and a special character like ! or #) together with your child. Nothing else is collected from them.</p>
 
     <p class="banner success" id="addSuccess"></p>
     <p class="banner error" id="addError"></p>
@@ -483,8 +483,8 @@
           <input type="text" id="child-username" name="child-username" minlength="3" maxlength="20" pattern="[A-Za-z0-9]+" autocomplete="off" required>
         </div>
         <div class="form-field">
-          <label for="child-pin">PIN (4-6 digits)</label>
-          <input type="text" id="child-pin" name="child-pin" inputmode="numeric" pattern="[0-9]{4,6}" minlength="4" maxlength="6" autocomplete="off" required>
+          <label for="child-pin">Password</label>
+          <input type="text" id="child-pin" name="child-pin" minlength="8" maxlength="60" autocomplete="off" placeholder="8+ characters: letter, number, ! or #" required>
         </div>
       </div>
       <button type="submit" class="btn btn-primary login-submit">Add Child</button>
@@ -552,7 +552,7 @@
         name.textContent = child.username;
         var meta = document.createElement('div');
         meta.className = 'child-meta';
-        meta.textContent = 'Logs in with their username + PIN at the Log In page';
+        meta.textContent = 'Logs in with their username + password at the Log In page';
         left.appendChild(name);
         left.appendChild(meta);
         row.appendChild(left);
@@ -591,7 +591,7 @@
         var data = await res.json().catch(function () { return {}; });
 
         if (res.ok) {
-          successMsg.textContent = 'Added ' + username + '! They can log in now with that username and PIN.';
+          successMsg.textContent = 'Added ' + username + '! They can log in now with that username and password.';
           successMsg.style.display = 'block';
           form.reset();
           loadChildren();

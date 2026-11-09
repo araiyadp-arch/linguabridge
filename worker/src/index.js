@@ -239,9 +239,9 @@ const CHILD_PIN_RE = /^[0-9]{4,6}$/;
 const COMMON_PASSWORDS = new Set(["password","password1","password123","1234567890","123456789","12345678","qwertyuiop","qwerty123","iloveyou","letmein123","welcome123","admin12345","abc123456","linguabridge","lingua-bridge","password12","passw0rd12"]);
 
 function passwordProblem(password, email) {
-  if (password.length < 10) return "Password must be at least 10 characters.";
+  if (password.length < 8) return "Password must be at least 8 characters.";
   if (password.length > 200) return "That password is too long.";
-  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) return "Password needs at least one letter and one number.";
+  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) return "Password needs a letter, a number, and a special character like ! or #.";
   const lower = password.toLowerCase();
   if (COMMON_PASSWORDS.has(lower)) return "That password is too easy to guess. Please pick another.";
   const local = (email || "").split("@")[0].toLowerCase();
@@ -403,15 +403,12 @@ async function handleCreateChild(request, env) {
       request
     );
   }
-  if (!pin || !CHILD_PIN_RE.test(pin)) {
-    return jsonResponse(
-      { error: "PIN must be 4 to 6 numbers." },
-      400,
-      request
-    );
+  const childPwProblem = passwordProblem(pin, "");
+  if (childPwProblem) {
+    return jsonResponse({ error: childPwProblem }, 400, request);
   }
 
-  const existing = await env.DB.prepare("SELECT id FROM users WHERE username = ?")
+  const existing = await env.DB.prepare("SELECT id FROM users WHERE lower(username) = lower(?)")
     .bind(username)
     .first();
   if (existing) {
@@ -682,27 +679,57 @@ const ASK_BRIDGE_MAX_QUESTION_LEN = 300;
 // strict regardless of what's asked. Don't remove them to make answers
 // "more helpful" — a wrong refusal is a much smaller problem than a bad
 // answer to a 5-year-old.
-const ASK_BRIDGE_SYSTEM_PROMPT = `You are Bridge, a friendly robot mascot inside LinguaBridge, a private learning app for kids and teens ages 5 to 17.
+const BRIDGE_ADULT_MSG = "Sorry, please consult with an adult. I am a robot. I only teach the lessons that are on this website.";
+const BRIDGE_REPHRASE_MSG = "Please ask this question differently. I can only help with learning conversational English.";
+const BRIDGE_PRIVATE_MSG = "Please do not share personal information here. Ask me about English instead!";
+const BRIDGE_HELP_MSG = "I am so sorry you feel this way. Please tell a trusted adult right now, like a parent or teacher. If you are in danger, call 911. You can call or text 988 any time. You are not alone.";
+const BRIDGE_ABUSE_MSG = "I am so sorry. This is not your fault. Please tell a trusted adult right now. If you are in danger, call 911. Childhelp: 1-800-422-4453.";
 
-You ONLY help with learning English: words and their meanings, grammar, pronunciation, spelling, reading, writing, speaking practice, conversation practice, and questions about the student's current LinguaBridge lesson. Answer in short, warm, age-appropriate sentences (2-5 sentences max). Use simple words for the age group. Be encouraging, like a kind teacher.
+const ASK_BRIDGE_SYSTEM_PROMPT = `You are Bridge, a robot helper inside LinguaBridge, a free English-learning website for kids ages 5 to 17. You only teach conversational English: words and meanings, grammar, pronunciation, spelling, reading, writing, and speaking practice.
 
-If a student asks about anything that is not about learning English (math or other school subjects, general knowledge, how things work, games, celebrities, news, or chit-chat), do not answer it. Kindly say that you are Bridge, an English helper, and that a teacher or parent can help with that, then offer an English activity instead, such as teaching a related English word or practicing a sentence about their topic. A friendly greeting or a short thank-you is fine to answer, then bring the conversation back to English. You may use a student's topic of interest as the example for an English lesson (for example, teach the words "ball" and "kick" if they mention soccer), but teach the English, not the subject.
+STYLE: Reply in 1 or 2 very short, simple sentences (under 30 words). Plain, clean, friendly English. No lists, no long explanations.
 
-Calibrate every answer to a 13-year-old or younger, even though some LinguaBridge users are older teens — you can't tell which one you're talking to, so keep things wholesome, gentle, and simple by default rather than assuming an older, more mature audience. Nothing mature, intense, or edgy, even if it would be fine for a 16-year-old elsewhere.
+RULES (no exceptions):
+- If the question is not about learning English, reply exactly: "${BRIDGE_ADULT_MSG}"
+- If you are in any doubt, or the question is unclear, reply exactly: "${BRIDGE_REPHRASE_MSG}"
+- Never ask the student anything personal (name, age, school, address, family, photos, feelings, passwords). Never answer personal questions about anyone. If a student shares personal information, do not repeat it.
+- Never use swearing or rude words. Never say anything racist, sexist, or unfair to any group of people. Never talk about sex, nudity, violence, drugs, or scary things.
+- Never pass messages between students. Students cannot talk to each other through you.
+- Never name real people. Never give the time, date, or news.
+- Never pretend to be human. You are a robot.`;
 
-If a student writes in a language other than English, you can understand it — don't ignore or refuse a message just because it isn't in English. Respond warmly (a short reply in their language is fine), and also give the English version of your answer so they pick up more English from every exchange. Gently invite them to try their next message in English when it feels natural.
 
-You do not have access to a live clock, calendar, or current-events feed, so never guess or make up the current time, date, or something happening live right now — say plainly that you can't know that instead of inventing an answer.
+// ---- Ask Bridge hard filters (2026-11-09) -------------------------------
+// These run BEFORE the AI model and on its answer, so the safety rules do not
+// depend on the model behaving. Founder rules: clean conversational English only,
+// no swearing / hate / sexism / sex talk, no personal info, no student-to-student chat.
+const BAD_WORDS_RE = /\b(fuck\w*|shit\w*|bitch\w*|bastard|asshole|dick|cock|pussy|cunt|slut|whore|damn|crap|piss\w*|wtf|stfu|nigg\w*|fag\w*|retard\w*|chink|spic|kike|tranny|sex\w*|porn\w*|nude|naked|penis|vagina|boob\w*|horny|erotic|rape\w*|molest\w*|orgasm|masturbat\w*|blowjob|condom|nazi|terrorist|cocaine|heroin|weed|marijuana)\b/i;
+const HATE_RE = /\b(girls|boys|women|men|blacks?|whites?|asians?|mexicans?|jews?|muslims?|christians?|hindus?|gays?|immigrants?)\s+(are|is)\s+(stupid|dumb|bad|worse|inferior|dirty|ugly|better than)/i;
+const SELFHARM_RE = /(kill myself|killing myself|want to die|wanna die|don.?t want to (be alive|live)|end my life|suicid|hurt myself|hurting myself|cut myself|self.?harm|better off dead|wish i was dead)/i;
+const ABUSE_RE = /(hurts? me|hits? me|beats? me|abus(e|es|ed|ing)|touch(es|ed)? me|molest|someone is hurting|scared of (my|him|her)|unsafe at home)/i;
+const PERSONAL_SHARE_RE = /(my (full )?name is|i am called|my (phone|number|address|email|password|school)\b|i live (at|in|on)|\b\d{3}[-. )]*\d{3}[-. ]*\d{4}\b|[\w.+-]+@[\w-]+\.[\w.]+|\b\d{1,5}\s+\w+\s+(street|st|road|rd|avenue|ave|lane|ln|drive|dr)\b|i go to .{2,30} school|my (mom|dad|mother|father|sister|brother|teacher) (is|named|name))/i;
+const PERSONAL_ASK_RE = /(how old are you|your age|where do you live|what.?s your (real )?name|who made you|are you a (boy|girl)|do you have (a )?(family|mom|dad|friends?)|are you (single|married)|your (phone|address|school|birthday))/i;
+const STUDENT_CHAT_RE = /(tell|message|text|send|say to|talk to|chat with|ask)\s+(\w+\s+)?(another|other|my)?\s*(student|friend|classmate|kid|him|her|them)\b|\bpass (this|a) message|send (a )?message to/i;
 
-Hard rules, no exceptions:
-- Never discuss or generate anything violent, sexual, scary, hateful, or otherwise inappropriate for a child.
-- Never ask the student for personal information (full name, address, phone number, school name, photos, passwords, etc.), and if they share any, don't repeat it back or store it in your answer — just gently redirect to the question or lesson.
-- If a question is about something an adult should handle instead (personal/family advice, medical or legal questions, serious current events, or anything else beyond general knowledge for a child), kindly say that's something to ask a teacher or parent, rather than answering it yourself.
-- If a question suggests the student might be upset, in danger, or need help from an adult (bullying, being hurt, feeling unsafe, etc.), gently and clearly tell them to talk to a trusted adult, parent, or teacher right away. Do not try to solve that problem yourself.
-- If a student says anything about wanting to die or hurt themselves, or says someone is hurting them (at home or anywhere), or that they are being abused: respond with warmth first and keep it short. Say you are really glad they told you, that it is not their fault, and that they deserve to be safe. Tell them to tell a trusted grown-up RIGHT NOW, such as a teacher or school counselor or another adult they trust (do not assume that a parent or someone at home is safe to tell). Tell them that in the United States they can call or text 988 any time, that the Childhelp hotline is 1-800-422-4453, and that if they are in danger right now they should call 911. Do not ask for details, do not probe, do not try to counsel them yourself, and do not change the subject back to lessons in that reply.
-- Do not name real people such as singers, actors, athletes, or YouTubers in your answers; talk about the topic in general (for example, "music" instead of a singer's name).
-- Never pretend to be human, never claim feelings you don't have in a way that could confuse a young child about what you are, and never break character in a way that's scary or confusing.
-- If you are at all unsure whether something is appropriate to answer, politely decline and suggest asking a teacher or parent instead.`;
+function bridgeFilter(question) {
+  if (SELFHARM_RE.test(question)) return BRIDGE_HELP_MSG;
+  if (ABUSE_RE.test(question)) return BRIDGE_ABUSE_MSG;
+  if (BAD_WORDS_RE.test(question) || HATE_RE.test(question)) return BRIDGE_ADULT_MSG;
+  if (PERSONAL_SHARE_RE.test(question)) return BRIDGE_PRIVATE_MSG;
+  if (PERSONAL_ASK_RE.test(question)) return BRIDGE_REPHRASE_MSG;
+  if (STUDENT_CHAT_RE.test(question)) return BRIDGE_ADULT_MSG;
+  return null;
+}
+// Keep answers short: at most two sentences, and never anything that trips the word filters.
+function bridgeClean(answer) {
+  let a = (answer || "").replace(/\s+/g, " ").trim();
+  if (!a) return BRIDGE_REPHRASE_MSG;
+  if (BAD_WORDS_RE.test(a) || HATE_RE.test(a)) return BRIDGE_ADULT_MSG;
+  const sentences = a.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [a];
+  a = sentences.slice(0, 2).join("").trim();
+  if (a.length > 220) a = a.slice(0, 220).replace(/\s+\S*$/, "") + ".";
+  return a;
+}
 
 function clientKey(request) {
   return request.headers.get("CF-Connecting-IP") || "unknown";
@@ -958,6 +985,11 @@ async function handleAskBridge(request, env) {
   }
 
   let answer;
+  const blocked = bridgeFilter(question);
+  if (blocked) {
+    // Answered with a fixed, short message. Nothing is sent to the AI and nothing is stored.
+    return jsonResponse({ answer: blocked }, 200, request);
+  }
   if (isTimeQuestion(question)) {
     // Answered deterministically (see the world-clock section above) —
     // the AI model has no real clock, so letting it guess would just
@@ -975,7 +1007,7 @@ async function handleAskBridge(request, env) {
           ...history,
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 300,
+        max_tokens: 80,
       });
 
       // Different Workers AI models shape their output differently: older
@@ -987,11 +1019,7 @@ async function handleAskBridge(request, env) {
         (aiResult && aiResult.response) ||
         (aiResult && aiResult.choices && aiResult.choices[0] && aiResult.choices[0].message && aiResult.choices[0].message.content) ||
         "";
-      answer = rawAnswer.trim();
-      if (!answer) {
-        answer =
-          "Hmm, I'm not sure how to answer that one. Can you try asking a different way, or ask your teacher?";
-      }
+      answer = bridgeClean(rawAnswer);
     } catch (e) {
       // Log the real error so it shows up in the Cloudflare dashboard's
       // Observability/Logs view (Message column) instead of being invisible —
@@ -1005,15 +1033,7 @@ async function handleAskBridge(request, env) {
     }
   }
 
-  // Best-effort: don't fail the response if logging hiccups.
-  try {
-    await env.DB.prepare(
-      "INSERT INTO bridge_questions (client_id, question, answer, level, lesson_topic) VALUES (?, ?, ?, ?, ?)"
-    )
-      .bind(clientKey(request), question, answer, level, lessonTopic)
-      .run();
-  } catch (e) {}
-
+  // Privacy: questions and answers are NOT saved anywhere (founder rule, 2026-11-09).
   return jsonResponse({ answer }, 200, request);
 }
 

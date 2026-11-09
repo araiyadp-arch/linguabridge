@@ -494,12 +494,12 @@
       </div>
       <div class="form-field">
         <label for="signup-password">Password</label>
-        <p class="field-helper">At least 10 characters, with a letter and a number.</p>
-        <input type="password" id="signup-password" name="signup-password" autocomplete="new-password" minlength="10" required>
+        <p class="field-helper">At least 8 characters with a letter, a number, and a special character like ! or #.</p>
+        <input type="password" id="signup-password" name="signup-password" autocomplete="new-password" minlength="8" required>
       </div>
       <div class="form-field">
         <label for="signup-password-confirm">Confirm Password</label>
-        <input type="password" id="signup-password-confirm" name="signup-password-confirm" autocomplete="new-password" minlength="10" required>
+        <input type="password" id="signup-password-confirm" name="signup-password-confirm" autocomplete="new-password" minlength="8" required>
       </div>
 
       <p id="signup-error" style="display:none; color:#B3261E; font-size:0.9rem; font-weight:600; margin:-8px 0 16px;"></p>
@@ -566,8 +566,8 @@
         errorMsg.style.display = 'block';
         return;
       }
-      if (password.length < 10 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
-        errorMsg.textContent = 'Password must be at least 10 characters, with a letter and a number.';
+      if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+        errorMsg.textContent = 'Password needs 8+ characters with a letter, a number, and a special character like ! or #.';
         errorMsg.style.display = 'block';
         return;
       }

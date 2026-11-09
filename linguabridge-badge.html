@@ -139,6 +139,7 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 </div></main>
 <script src="lb-core.js"></script>
 <script src="lb-content.js"></script>
+<script src="lb-icons.js"></script>
 <script>
 // BADGE RENDERER — draws the badge SVG for the lesson just completed
 // (or, in review mode, the most recently earned one) and a short
@@ -149,11 +150,11 @@ if(s.justPassed){s.completed.push({n:s.justPassed,date:LB.today(s),level:s.level
 const mine=s.completed.filter(c=>c.level===s.level),last=mine[mine.length-1]||{n:1};
 const L=LEVELS[s.level]||LEVELS.explorer,topic=advFor(s.level,last.n).topic;
 document.getElementById('art').innerHTML=badgeSVG(s.level,last.n,topic.icon,210);
+try{LB_confetti(4200)}catch(e){}
 document.getElementById('bname').textContent=topic.name;
 document.getElementById('bsub').textContent=L.emoji+' '+L.name+' badge · Lesson '+last.n;
 document.getElementById('msg').textContent={explorer:"You sprouted a brand-new badge! Every lesson helps you grow.",builder:"Another block in place! You're building your English one step at a time.",communicator:"Your words are getting clearer and louder. Nice work!",leader:"Leading the way! Your English keeps getting stronger."}[s.level];
 
 </script>
 
-<script src="lb-icons.js"></script>
 </body></html>
