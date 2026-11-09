@@ -171,85 +171,115 @@ function LB_gameItems(lesson,max){
  for(const [w,h,e] of raw){if(!w||!e||seen.has(w))continue;seen.add(w);items.push({word:w,hint:h,emoji:e});if(items.length>=max)break}
  return items}
 function LB_shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-/* Picture Match: tap a word chip, then tap the emoji that goes with it. Wrong taps just bounce --
-   never penalized, same spirit as mountChoices(). Calls onDone() once every item is matched. */
+/* ---- Games v2 (2026-11-08): one question at a time, big friendly cards, Bridge cheers. ---- */
+function LB_gameStyles(){
+ if(document.getElementById('lbGameCss'))return;
+ const s=document.createElement('style');s.id='lbGameCss';
+ s.textContent=`
+ .gm{background:linear-gradient(180deg,#EAF6FF,#FFF9F1);border-radius:22px;padding:18px 16px 20px;border:2px solid #CFE8F8}
+ .gm-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+ .gm-dots{display:flex;gap:6px;flex-wrap:wrap}
+ .gm-dot{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #9CCBE8;transition:all .25s}
+ .gm-dot.on{background:#FFC83D;border-color:#E9A800;transform:scale(1.15)}
+ .gm-dot.now{border-color:#159FE8;box-shadow:0 0 0 3px rgba(21,159,232,.25)}
+ .gm-say{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+ .gm-bridge{flex:0 0 46px;height:46px;border-radius:50%;background:#159FE8;color:#fff;font-weight:700;font-size:1.3rem;display:flex;align-items:center;justify-content:center;font-family:var(--font-head,serif)}
+ .gm-bubble{background:#fff;border-radius:16px 16px 16px 4px;padding:10px 14px;font-weight:600;color:#0B3B6B;box-shadow:0 2px 6px rgba(11,59,107,.12);flex:1;line-height:1.35}
+ .gm-word{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 16px}
+ .gm-word b{font-family:var(--font-head,serif);font-size:2rem;color:#0B3B6B;background:#fff;padding:8px 22px;border-radius:16px;box-shadow:0 3px 0 #CFE8F8}
+ .gm-ear{border:none;background:#159FE8;color:#fff;border-radius:50%;width:44px;height:44px;cursor:pointer;font-size:1.2rem;box-shadow:0 3px 0 #0B6FAE;display:flex;align-items:center;justify-content:center}
+ .gm-ear:active{transform:translateY(2px);box-shadow:0 1px 0 #0B6FAE}
+ .gm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+ @media(min-width:560px){.gm-grid.n4{grid-template-columns:repeat(4,1fr)}}
+ .gm-card{border:3px solid #fff;background:#fff;border-radius:20px;padding:12px 6px;cursor:pointer;font-size:3rem;line-height:1;min-height:104px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 0 #CFE8F8;transition:transform .12s}
+ .gm-card svg,.gm-card .lbe{width:64px;height:64px}
+ .gm-card:hover{transform:translateY(-2px)}
+ .gm-card:active{transform:translateY(2px);box-shadow:0 1px 0 #CFE8F8}
+ .gm-card.right{background:#DDF6D6;border-color:#12864A;animation:gmpop .45s}
+ .gm-card.wrong{background:#FFF0E0;border-color:#F0A04B;animation:gmwob .35s}
+ @keyframes gmpop{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}
+ @keyframes gmwob{25%{transform:rotate(-5deg)}75%{transform:rotate(5deg)}}
+ .gm-sent{font-family:var(--font-head,serif);font-size:1.3rem;color:#0B3B6B;background:#fff;border-radius:16px;padding:16px 18px;line-height:1.9;box-shadow:0 3px 0 #CFE8F8;margin-bottom:14px}
+ .gm-slot{display:inline-block;min-width:92px;border-bottom:4px dashed #159FE8;color:transparent;text-align:center;border-radius:6px;background:#EAF6FF;padding:0 8px}
+ .gm-slot.filled{color:#12864A;border-bottom:4px solid #12864A;background:#DDF6D6;font-weight:700}
+ .gm-opts{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+ .gm-chip{border:3px solid #fff;background:#fff;color:#0B3B6B;font-family:inherit;font-weight:600;font-size:1.1rem;padding:12px 20px;border-radius:999px;cursor:pointer;box-shadow:0 4px 0 #CFE8F8}
+ .gm-chip:active{transform:translateY(2px);box-shadow:0 1px 0 #CFE8F8}
+ .gm-chip.right{background:#DDF6D6;border-color:#12864A}
+ .gm-chip.wrong{background:#FFF0E0;border-color:#F0A04B;animation:gmwob .35s}
+ .gm-win{text-align:center;padding:14px 4px}
+ .gm-win .stars{font-size:2.6rem;letter-spacing:6px}
+ .gm-win h3{margin:8px 0 4px}
+ `;document.head.appendChild(s)}
+const GM_CHEER=['Great job!','You got it!','Awesome!','Super!','Yes! Well done!','Brilliant!','Nice one!'];
+const GM_TRY=['Almost! Try another one.','Not quite. You can do it!','Oops! Have another look.','Good try! Pick again.'];
+function LB_pickMsg(a){return a[Math.floor(Math.random()*a.length)]}
+function LB_gmShell(el){
+ LB_gameStyles();
+ el.innerHTML='<div class="gm"><div class="gm-top"><div class="gm-dots"></div></div><div class="gm-say"><div class="gm-bridge">B</div><div class="gm-bubble"></div></div><div class="gm-body"></div></div>';
+ const q=s=>el.querySelector(s);
+ return {dots:q('.gm-dots'),say:t=>{q('.gm-bubble').textContent=t},body:q('.gm-body'),
+  setDots(n,done){this.dots.innerHTML='';for(let i=0;i<n;i++){const d=document.createElement('span');d.className='gm-dot'+(i<done?' on':i===done?' now':'');this.dots.appendChild(d)}}}}
+function LB_gmWin(sh,text,onDone){
+ sh.dots.querySelectorAll('.gm-dot').forEach(d=>{d.classList.remove('now');d.classList.add('on')});
+ sh.body.innerHTML='<div class="gm-win"><div class="stars">⭐⭐⭐</div><h3>'+text+'</h3></div>';
+ sh.say('You finished this game! Tap Next to keep going.');onDone()}
+/* Find the Picture: one word at a time, tap the picture that matches. Wrong picks wobble, never penalised. */
 function LB_mountMatchGame(el,items,onDone){
- let picked=null;const done=new Set();
- el.innerHTML='<p class="muted" style="margin:0 0 14px;font-size:.92rem">Tap a word, then tap its picture.</p>'+
-  '<div class="lb-game-words" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px"></div>'+
-  '<div class="lb-game-pics" style="display:flex;flex-wrap:wrap;gap:10px"></div>';
- const wordsEl=el.querySelector('.lb-game-words'),picsEl=el.querySelector('.lb-game-pics');
- items.forEach((it,i)=>{
-  const wb=document.createElement('button');wb.className='btn btn-secondary';wb.textContent=it.word;wb.dataset.i=i;
-  wb.onclick=()=>{if(done.has(i))return;[...wordsEl.children].forEach(b=>b.classList.remove('btn-primary'));wb.classList.add('btn-primary');picked=i};
-  wordsEl.appendChild(wb)});
- LB_shuffle(items.map((it,i)=>i)).forEach(i=>{
-  const it=items[i];const pb=document.createElement('button');pb.className='btn btn-secondary';pb.style.fontSize='1.6rem';pb.textContent=it.emoji;pb.dataset.i=i;
-  pb.onclick=()=>{if(done.has(i)||picked===null)return;
-   if(picked===i){pb.classList.add('btn-primary');pb.disabled=true;wordsEl.children[i].disabled=true;wordsEl.children[i].classList.remove('btn-primary');wordsEl.children[i].style.opacity='.5';done.add(i);picked=null;if(done.size>=items.length)onDone()}
-   else{pb.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],{duration:260})}};
-  picsEl.appendChild(pb)})}
-/* Memory Flip: classic pair-matching, emoji card vs. word card. Calls onDone() once every pair is found. */
-function LB_mountMemoryGame(el,items,onDone){
- const cards=[];items.forEach((it,i)=>{cards.push({i,side:'emoji',val:it.emoji},{i,side:'word',val:it.word})});
- const shuffled=LB_shuffle(cards);let first=null,lock=false,foundPairs=0;
- el.innerHTML='<p class="muted" style="margin:0 0 14px;font-size:.92rem">Flip two cards to find a match.</p><div class="lb-game-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px"></div>';
- const grid=el.querySelector('.lb-game-grid');
- shuffled.forEach((c,idx)=>{
-  const b=document.createElement('button');b.className='btn btn-secondary';b.style.cssText='height:72px;font-size:1.3rem';b.textContent='?';b.dataset.idx=idx;
-  b.onclick=()=>{
-   if(lock||b.disabled||b===first)return;
-   b.textContent=c.val;b.classList.add('btn-primary');
-   if(first===null){first=b;first._c=c;return}
-   const second=b,sc=c;
-   if(first._c.i===sc.i){first.disabled=true;second.disabled=true;first.style.opacity=second.style.opacity='.45';first=null;foundPairs++;if(foundPairs>=items.length)onDone()}
-   else{lock=true;setTimeout(()=>{first.textContent='?';second.textContent='?';first.classList.remove('btn-primary');second.classList.remove('btn-primary');first=null;lock=false},700)}
-  };
-  grid.appendChild(b)})}
-/* Fill in the Blank: pulls real lines from the lesson's own conversation, blanks out a vocab
-   word that appears in them, student picks the right word from a small word bank. Not every
-   vocab word necessarily appears in the (short) conversation, so this builds however many real
-   rounds it can find and calls onDone() once every one of THOSE rounds is solved -- if none can
-   be built for a given lesson, it's skipped (onDone fires immediately) rather than stalling. */
+ const sh=LB_gmShell(el);const order=LB_shuffle(items.map((x,i)=>i));let step=0;
+ function ask(){
+  if(step>=order.length){LB_gmWin(sh,'You matched every word!',onDone);return}
+  const it=items[order[step]];sh.setDots(order.length,step);
+  sh.say('Which picture is "'+it.word+'"? Tap it!');
+  const choices=LB_shuffle([it].concat(LB_shuffle(items.filter(x=>x!==it)).slice(0,3)));
+  sh.body.innerHTML='<div class="gm-word"><b></b><button class="gm-ear" type="button" aria-label="Hear the word">🔊</button></div><div class="gm-grid'+(choices.length>=4?' n4':'')+'"></div>';
+  sh.body.querySelector('b').textContent=it.word;
+  sh.body.querySelector('.gm-ear').onclick=()=>{try{bridgeSpeak(it.word,{mode:'pronunciation'})}catch(e){}};
+  const grid=sh.body.querySelector('.gm-grid');let locked=false;
+  choices.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='gm-card';b.textContent=c.emoji;b.setAttribute('aria-label','picture choice');
+   b.onclick=()=>{if(locked)return;
+    if(c===it){locked=true;b.classList.add('right');sh.say(LB_pickMsg(GM_CHEER)+' That is "'+it.word+'".');
+     const d=sh.dots.children[step];if(d){d.classList.remove('now');d.classList.add('on')}
+     setTimeout(()=>{step++;ask()},1100)}
+    else{b.classList.add('wrong');sh.say(LB_pickMsg(GM_TRY));setTimeout(()=>b.classList.remove('wrong'),400)}};
+   grid.appendChild(b)})}
+ ask()}
+/* Finish the Sentence: one line at a time from the lesson's own conversation. Tap the missing word. */
 function LB_mountFillBlankGame(el,items,conversation,onDone){
  const lines=(conversation||[]).map(([who,txt])=>txt);
  const rounds=[];
  items.forEach(it=>{const line=lines.find(l=>l.toLowerCase().includes(it.word.toLowerCase()));
-  if(line){const re=new RegExp(it.word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
-   rounds.push({blanked:line.replace(re,'_____'),answer:it.word,options:LB_shuffle([it.word].concat(LB_shuffle(items.filter(x=>x!==it).map(x=>x.word)).slice(0,2)))})}});
+  if(line){const idx=line.toLowerCase().indexOf(it.word.toLowerCase());
+   rounds.push({before:line.slice(0,idx),after:line.slice(idx+it.word.length),answer:it.word,options:LB_shuffle([it.word].concat(LB_shuffle(items.filter(x=>x!==it).map(x=>x.word)).slice(0,2)))})}});
  if(!rounds.length){el.innerHTML='<p class="muted">Nothing to fill in for this lesson yet -- nice, you already know it all!</p>';onDone();return}
- let solved=0;
- el.innerHTML='<p class="muted" style="margin:0 0 14px;font-size:.92rem">Pick the word that completes the line.</p><div class="lb-game-fill" style="display:flex;flex-direction:column;gap:20px"></div>';
- const box=el.querySelector('.lb-game-fill');
- rounds.forEach(r=>{
-  const row=document.createElement('div');
-  row.innerHTML='<p style="font-family:var(--font-head,serif);margin:0 0 10px">'+r.blanked+'</p><div style="display:flex;flex-wrap:wrap;gap:8px"></div>';
-  const optsEl=row.querySelector('div');
-  r.options.forEach(o=>{const b=document.createElement('button');b.className='btn btn-secondary';b.textContent=o;
-   b.onclick=()=>{if(b.disabled)return;
-    if(o.toLowerCase()===r.answer.toLowerCase()){b.classList.add('btn-primary');[...optsEl.children].forEach(x=>x.disabled=true);solved++;if(solved>=rounds.length)onDone()}
-    else{b.animate([{transform:'translateX(0)'},{transform:'translateX(-6px)'},{transform:'translateX(6px)'},{transform:'translateX(0)'}],{duration:260})}};
-   optsEl.appendChild(b)});
-  box.appendChild(row)})}
-/* Top-level entry point used by the lesson page: picks the right game(s) for this level, by tier
-   (explorer=1, builder=2, communicator=3, leader=4 -- see file header), and fires onAllDone()
-   once, after every required game for that tier is solved. The host page only needs
-   need[step]=1 and gate(step,0) as onAllDone, same as its simplest existing steps. */
+ const sh=LB_gmShell(el);let step=0;
+ function ask(){
+  if(step>=rounds.length){LB_gmWin(sh,'Every sentence is complete!',onDone);return}
+  const r=rounds[step];sh.setDots(rounds.length,step);sh.say('One word is missing. Which word fits? Tap it!');
+  sh.body.innerHTML='<div class="gm-sent"></div><div class="gm-opts"></div>';
+  const sent=sh.body.querySelector('.gm-sent');
+  sent.appendChild(document.createTextNode(r.before));
+  const slot=document.createElement('span');slot.className='gm-slot';slot.textContent=r.answer;sent.appendChild(slot);
+  sent.appendChild(document.createTextNode(r.after));
+  const opts=sh.body.querySelector('.gm-opts');let locked=false;
+  r.options.forEach(o=>{const b=document.createElement('button');b.type='button';b.className='gm-chip';b.textContent=o;
+   b.onclick=()=>{if(locked)return;
+    if(o.toLowerCase()===r.answer.toLowerCase()){locked=true;b.classList.add('right');slot.classList.add('filled');sh.say(LB_pickMsg(GM_CHEER));
+     const d=sh.dots.children[step];if(d){d.classList.remove('now');d.classList.add('on')}
+     try{bridgeSpeak(r.before+r.answer+r.after,{mode:'conversational'})}catch(e){}
+     setTimeout(()=>{step++;ask()},1800)}
+    else{b.classList.add('wrong');sh.say(LB_pickMsg(GM_TRY));setTimeout(()=>b.classList.remove('wrong'),400)}};
+   opts.appendChild(b)})}
+ ask()}
+/* Entry used by the lesson page (contract unchanged): explorer/builder = Find the Picture,
+   communicator = Finish the Sentence, leader = both. onAllDone() fires once when everything is solved. */
 function LB_mountLessonGame(el,lesson,level,onAllDone){
  const tier={explorer:1,builder:2,communicator:3,leader:4}[level]||1;
  const items=LB_gameItems(lesson,tier>=4?8:tier>=2?6:4);
- if(tier===1){el.innerHTML='<h2 style="margin-bottom:6px">Picture Match</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountMatchGame(box,items,onAllDone);return}
- if(tier===2){el.innerHTML='<h2 style="margin-bottom:6px">Picture Match</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountMatchGame(box,items,onAllDone);return} /* Memory Flip removed 2026-11-05 at the founder's request */
- if(tier===3){el.innerHTML='<h2 style="margin-bottom:6px">Fill in the Blank</h2>';const box=document.createElement('div');el.appendChild(box);LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone);return}
- // leader: all three games back to back, hardest tier gets more items and no earlier-tier skip
- el.innerHTML='<h2 style="margin-bottom:6px" id="lbGameTitle">Picture Match</h2><div id="lbGameBox"></div>';
- const titleEl=el.querySelector('#lbGameTitle'),box=el.querySelector('#lbGameBox');
- const stages=[
-  ()=>{titleEl.textContent='Picture Match (1 of 2)';LB_mountMatchGame(box,items,next)},
-  ()=>{titleEl.textContent='Fill in the Blank (2 of 2)';LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone)}
- ];
- let stage=0;function next(){stage++;if(stage<stages.length)stages[stage]()}
- stages[0]()}
+ const wrap=(title,fn)=>{el.innerHTML='<h2 style="margin-bottom:10px" id="lbGameTitle">'+title+'</h2><div id="lbGameBox"></div>';fn(el.querySelector('#lbGameBox'),el.querySelector('#lbGameTitle'))};
+ if(tier<=2){wrap('Find the Picture',box=>LB_mountMatchGame(box,items,onAllDone));return}
+ if(tier===3){wrap('Finish the Sentence',box=>LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone));return}
+ wrap('Find the Picture (1 of 2)',(box,t)=>LB_mountMatchGame(box,items,()=>{t.textContent='Finish the Sentence (2 of 2)';LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone)}))}
 
 /* ------------------------------------------------------------------
    ASK BRIDGE — a floating "ask a question" chat widget, available on
