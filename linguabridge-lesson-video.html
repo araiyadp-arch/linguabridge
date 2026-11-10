@@ -160,13 +160,15 @@ const S=advFor(s.level,last.n).video;
 if(VIDEO_URL){vid.innerHTML='<video controls playsinline src="'+VIDEO_URL+'"></video>';document.getElementById('ctrls').style.display='none'}
 else{
  let i=0,tmr=null,playing=false,mute=false;
- const total=S.reduce((a,x)=>a+x.d,0);
+ /* slower pacing (2026-11-09): at least 1.7x the authored time, and enough time to hear the whole line */
+ const dur=c=>Math.max(c.d*1.7,3500+String(c.say||'').split(' ').length*600);
+ const total=S.reduce((a,x)=>a+dur(x),0);
  function scene(k){const c=S[k];
   vid.innerHTML='<div class="scene">'+(c.dl?'<div class="dl">'+c.dl.map((x,j)=>'<div style="animation-delay:'+(j*1.6)+'s">'+x+'</div>').join('')+'</div>':'<div class="em" aria-hidden="true">'+c.em+'</div>'+(c.wd?'<div class="wd">'+c.wd+'</div>':''))+'</div>'+BR.replace('class="bridge"','class="vb"')+'<div class="cap" aria-live="polite">'+c.say+'</div><div class="bar"><i id="pg"></i></div>';
-  const done=S.slice(0,k).reduce((a,x)=>a+x.d,0);
-  const pg=document.getElementById('pg');pg.style.width=(done/total*100)+'%';pg.style.transition='width '+c.d+'ms linear';requestAnimationFrame(()=>requestAnimationFrame(()=>pg.style.width=((done+c.d)/total*100)+'%'));
+  const done=S.slice(0,k).reduce((a,x)=>a+dur(x),0);
+  const pg=document.getElementById('pg');pg.style.width=(done/total*100)+'%';pg.style.transition='width '+dur(c)+'ms linear';requestAnimationFrame(()=>requestAnimationFrame(()=>pg.style.width=((done+dur(c))/total*100)+'%'));
   if(!mute)speak(c.say);
-  tmr=setTimeout(()=>{if(k<S.length-1){i=k+1;scene(i)}else{playing=false;document.getElementById('pp').textContent='▶ Play'}},c.d)}
+  tmr=setTimeout(()=>{if(k<S.length-1){i=k+1;scene(i)}else{playing=false;document.getElementById('pp').textContent='▶ Play'}},dur(c))}
  function play(){playing=true;document.getElementById('pp').textContent='⏸ Pause';scene(i)}
  function pause(){playing=false;clearTimeout(tmr);stopAudio();document.getElementById('pp').textContent='▶ Play'}
  vid.innerHTML='<button class="start" id="go" aria-label="Play video"><span>▶ Play video</span></button>';

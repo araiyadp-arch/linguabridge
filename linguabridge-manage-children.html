@@ -612,7 +612,7 @@
       logoutLink.addEventListener('click', function (e) {
         e.preventDefault();
         fetch(API_BASE + '/api/logout', { method: 'POST', credentials: 'include' })
-          .finally(function () { window.location.href = 'linguabridge-login-2.html'; });
+          .finally(function () { try { ['lb_student_v1','lb_role_cache','lb_active_v1'].forEach(function(k){localStorage.removeItem(k)}); sessionStorage.clear(); } catch (e) {} window.location.href = 'linguabridge-login-2.html'; });
       });
     }
   })();

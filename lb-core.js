@@ -544,6 +544,25 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
 })();
 
 
+
+/* ---------------------------------------------------------------------
+   LOG OUT + clean device (2026-11-09). Logging out ends the session AND wipes the progress,
+   role and timer copies kept in this browser, so the next person who logs in on the same
+   device starts completely fresh and never inherits the founder's view or anyone's progress.
+   A small "Log out" button is added to every lesson-flow page.
+   --------------------------------------------------------------------- */
+LB.wipeLocal=function(){try{[LB.KEY,LB.ROLE_KEY,'lb_active_v1'].forEach(k=>localStorage.removeItem(k));sessionStorage.clear()}catch(e){}};
+LB.logout=function(){const go=()=>{LB.wipeLocal();location.replace('linguabridge-login-2.html')};
+ try{fetch('https://api.lingua-bridge.us/api/logout',{method:'POST',credentials:'include'}).then(go,go)}catch(e){go()}};
+(function(){
+ function add(){
+  if(/login|signup|index|homepage|about/.test(location.pathname)&&!/dashboard|lesson|badge|tomorrow/.test(location.pathname))return;
+  if(document.getElementById('lbLogoutBtn'))return;
+  const b=document.createElement('button');b.id='lbLogoutBtn';b.type='button';b.textContent='Log out';
+  b.style.cssText='position:fixed;left:14px;bottom:14px;z-index:9998;background:#fff;color:#0B3B6B;border:2px solid #CFE8F8;border-radius:999px;padding:8px 16px;font:600 .85rem Lexend,sans-serif;cursor:pointer;box-shadow:0 4px 10px rgba(11,59,107,.15)';
+  b.onclick=LB.logout;document.body.appendChild(b)}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add);else add()})();
+
 /* ---------------------------------------------------------------------
    ACCOUNT PROGRESS SYNC (added 2026-11-05)
    Progress is still kept in localStorage (instant, works offline), and is now
@@ -580,7 +599,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
   if(!me||!me.authenticated||!me.username)return;
   owner=me.username;authed=true;
   let local=LB.get(),before=JSON.stringify(clean(local));
-  if(local.owner&&local.owner!==owner)local={level:'explorer',completed:[],dayOffset:0}; // someone else's leftovers on this device
+  if(local.owner!==owner)local={level:'explorer',completed:[],dayOffset:0}; // someone else's leftovers on this device
   let server=null;
   try{const r=await fetch(API+'/api/progress',{credentials:'include'});if(r.ok){const j=await r.json();server=j&&j.data}else if(r.status===404){authed=false;return}}catch(e){authed=false;return}
   let merged=server?merge(local,{level:server.level,completed:server.completed||[],voice:server.voice,quizHistory:server.quizHistory||[]}):local;
