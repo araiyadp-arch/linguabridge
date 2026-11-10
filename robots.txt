@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /linguabridge-admin.html
+Disallow: /linguabridge-dashboard.html
+Disallow: /linguabridge-lesson
+
+Sitemap: https://lingua-bridge.us/sitemap.xml
