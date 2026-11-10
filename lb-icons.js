@@ -427,6 +427,36 @@ ICONS['⛓']=ICONS['🔗'];
 ICONS['🌍']=ICONS['🌍']||c(24,24,20,B)+p('M12 12q8-2 10 6t-6 10-6 6q-6-8 2-22zM28 28q8-2 10 4t-6 10q-6-4-4-14z',G);
 ICONS['🗺']=p('M4 10l13-4 14 4 13-4v32l-13 4-14-4-13 4z','#F6E7B8')+l('M17 6v32M31 10v32','',2)+l('M8 20q5-4 8 2M35 18q4 4 6 12','#58B947',2.6)+l('M20 28l8 4M28 28l-8 4','#E8523F',3);
 ICONS['🆘']=r(2,10,44,28,R,6)+t(24,31,'SOS',16,W);
+/* ---------- cartoon kids (2026-11-09): friendlier replacements for the hand and smiley drawings ---------- */
+(function(){
+ const arm=(d,sk)=>l(d,K,8)+l(d,sk,4.6);
+ const hand=(x,y,sk,r)=>c(x,y,r||4.6,sk);
+ const kid=(o)=>{o=o||{};const sk=o.skin||S,hr=o.hair||DN,sh=o.shirt||B,cx=o.cx||24,s=o.s||1;
+  const g=(inner)=>`<g transform="translate(${cx-24*s} ${o.y||0}) scale(${s})">${inner}</g>`;
+  const eyes=e(18.5,21.5,2.9,3.6,K,1)+e(29.5,21.5,2.9,3.6,K,1)+c(19.4,20.3,1.1,W,1)+c(30.4,20.3,1.1,W,1);
+  const mouth=o.open?p('M17.5 27.5q6.5 9 13 0z',W)+l('M18.5 28h11','',1.6):l('M17.5 27.5q6.5 6.5 13 0','',2.4);
+  const cheeks=c(14,26.5,2.6,'#FF9AA2',1)+c(34,26.5,2.6,'#FF9AA2',1);
+  const hair=p('M11.5 20Q10 5.5 24 5.5T36.5 20Q31.5 11.5 24 13.5T11.5 20Z',hr);
+  return g((o.back||'')+p('M9 47q0-12 15-12t15 12z',sh)+c(24,21,13,sk)+hair+eyes+cheeks+mouth+(o.front||''))};
+ const bubble=(x,y)=>p(`M${x} ${y}h13a3.5 3.5 0 013.5 3.5v6a3.5 3.5 0 01-3.5 3.5h-6l-4 4v-4h-3a3.5 3.5 0 01-3.5-3.5v-6a3.5 3.5 0 013.5-3.5z`,W)+c(x+4,y+6.5,1.3,K,1)+c(x+8.5,y+6.5,1.3,K,1)+c(x+13,y+6.5,1.3,K,1);
+ const sp=(x,y)=>l(`M${x} ${y}l3-3M${x+1} ${y+5}h4M${x} ${y+10}l3 3`,O,2.4);
+ // 🙂 -> a kid saying something (most abstract words are things we SAY)
+ ICONS['🙂']=kid({s:.82,cx:19,y:6,open:1})+bubble(26,4);
+ // 👋 waving kid
+ ICONS['👋']=kid({s:.9,cx:21,y:4,open:1,back:arm('M33 41q9-3 8-16',S)+hand(41,22,S,5)})+sp(42,6);
+ // raised hand (stop / hello / ask a question)
+ const raised=kid({s:.9,cx:21,y:4,back:arm('M33 41q10-4 8-20',S)+hand(41,19,S,5.2)});
+ ICONS['🤚']=raised;ICONS['✋']=raised;
+ ICONS['🙋']=kid({s:.9,cx:22,y:5,open:1,shirt:O,hair:'#2B1B12',back:arm('M33 41q9-5 7-23',S)+hand(40,15,S,5.2)});
+ // 👍 thumbs up kid
+ ICONS['👍']=kid({s:.9,cx:21,y:4,open:1,shirt:G,front:''})+arm('M33 44q7 0 8-6',S)+c(41,36,5.2,S)+p('M39 34v-8q0-3 3-3t2 4v4',S);
+ // 🤝 two kids shaking hands
+ ICONS['🤝']=kid({s:.55,cx:12,y:8,shirt:B})+kid({s:.55,cx:36,y:8,shirt:R,skin:'#D9A066',hair:'#1E1E1E'})+arm('M16 38q8 4 16 0','#E8B98F')+c(24,39,4.6,'#E8B98F');
+ // 🙏 please: kid with hands together + hopeful eyes
+ ICONS['🙏']=kid({s:.95,cx:24,y:2,open:0,front:arm('M16 42l8-7 8 7',S)+c(24,38,4.6,S)});
+ // 💪 strong kid
+ ICONS['💪']=kid({s:.9,cx:21,y:4,open:1,shirt:R,back:arm('M33 42q9 2 9-7',S)+arm('M42 35q-1-9-8-8',S)+c(41,32,6,S)});
+})();
 /* ---------- lookup + DOM sweep ---------- */
 const FALL=star(24,25,19,Y);
 const norm=s=>s.replace(/[︎️\u{1F3FB}-\u{1F3FF}]/gu,'');
