@@ -96,7 +96,7 @@ const VOICE={ // kept only for the browser-fallback voice PICK; rate now always 
   return all.find(x=>/en[-_]US/i.test(x.lang))||all[0]||null}
 };
 function utter(t,mode,vid){const u=new SpeechSynthesisUtterance(t);u.lang=BRIDGE_VOICE_CONFIG.language;const v=VOICE.pick(vid);if(v){u.voice=v;u.lang=v.lang}
- u.rate=BRIDGE_VOICE_CONFIG.rate[mode||'conversational'];u.pitch=BRIDGE_VOICE_CONFIG.pitch;u.volume=BRIDGE_VOICE_CONFIG.volume;return u}
+ u.rate=BRIDGE_VOICE_CONFIG.rate[mode||'conversational']*LB_speed();u.pitch=BRIDGE_VOICE_CONFIG.pitch;u.volume=BRIDGE_VOICE_CONFIG.volume;return u}
 /* Recorded natural voice clips, embedded directly in the page (base64) so playback never depends on
    a separate audio folder or on how the file was opened/shared. Same voice on every device.
    The device's own speech voice above is only a last-resort fallback if a clip is ever missing. */
@@ -558,6 +558,24 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
 })();
 
 
+
+/* ---- Voice speed control (2026-11-09): kids pick Slow / Normal / Fast; applies to every spoken voice. ---- */
+function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));return v>=.5&&v<=1.5?v:1}catch(e){return 1}}
+(function(){
+ const OPTS=[['Slow',.7],['Normal',1],['Fast',1.25]];
+ function add(){
+  if(/login|signup|index|homepage|about/.test(location.pathname)&&!/dashboard|lesson|badge|tomorrow/.test(location.pathname))return;
+  if(document.getElementById('lbSpeed'))return;
+  const w=document.createElement('div');w.id='lbSpeed';w.setAttribute('role','group');w.setAttribute('aria-label','Voice speed');
+  w.style.cssText='position:fixed;left:14px;bottom:70px;z-index:9998;background:#fff;border:2px solid #CFE8F8;border-radius:18px;padding:6px 8px;box-shadow:0 4px 10px rgba(11,59,107,.15);font:600 .78rem Lexend,sans-serif;color:#0B3B6B;display:flex;align-items:center;gap:4px';
+  w.innerHTML='<span style="margin:0 4px 0 2px">Voice speed</span>';
+  OPTS.forEach(([n,v])=>{const b=document.createElement('button');b.type='button';b.textContent=n;b.dataset.v=v;
+   b.style.cssText='border:0;border-radius:999px;padding:6px 11px;font:inherit;cursor:pointer;background:#EAF6FF;color:#0B3B6B';
+   b.onclick=()=>{try{localStorage.setItem('lb_speed',String(v))}catch(e){}paint();try{bridgeSpeak('This is how fast I talk.',{mode:'conversational'})}catch(e){}};
+   w.appendChild(b)});
+  function paint(){const cur=LB_speed();[...w.querySelectorAll('button')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'})}
+  paint();document.body.appendChild(w)}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add);else add()})();
 
 /* ---------------------------------------------------------------------
    LOG OUT + clean device (2026-11-09). Logging out ends the session AND wipes the progress,
