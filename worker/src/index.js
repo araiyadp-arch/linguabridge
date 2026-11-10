@@ -683,6 +683,7 @@ const BRIDGE_ADULT_MSG = "Sorry, please consult with an adult. I am a robot. I o
 const BRIDGE_REPHRASE_MSG = "Please ask this question differently. I can only help with learning conversational English.";
 const BRIDGE_PRIVATE_MSG = "Please do not share personal information here. Ask me about English instead!";
 const BRIDGE_HELP_MSG = "I am so sorry you feel this way. Please tell a trusted adult right now, like a parent or teacher. If you are in danger, call 911. You can call or text 988 any time. You are not alone.";
+const BRIDGE_SAD_MSG = "I am sorry you feel sad. You matter. Please talk to a trusted adult, like a parent or teacher.";
 const BRIDGE_ABUSE_MSG = "I am so sorry. This is not your fault. Please tell a trusted adult right now. If you are in danger, call 911. Childhelp: 1-800-422-4453.";
 
 const ASK_BRIDGE_SYSTEM_PROMPT = `You are Bridge, a robot helper inside LinguaBridge, a free English-learning website for kids ages 5 to 17. You only teach conversational English: words and meanings, grammar, pronunciation, spelling, reading, writing, and speaking practice.
@@ -707,6 +708,7 @@ const BAD_WORDS_RE = /\b(fuck\w*|shit\w*|bitch\w*|bastard|asshole|dick|cock|puss
 const HATE_RE = /\b(girls|boys|women|men|blacks?|whites?|asians?|mexicans?|jews?|muslims?|christians?|hindus?|gays?|immigrants?)\s+(are|is)\s+(stupid|dumb|bad|worse|inferior|dirty|ugly|better than)/i;
 const SELFHARM_RE = /(kill myself|killing myself|want to die|wanna die|don.?t want to (be alive|live)|end my life|suicid|hurt myself|hurting myself|cut myself|self.?harm|better off dead|wish i was dead)/i;
 const ABUSE_RE = /(hurts? me|hits? me|beats? me|abus(e|es|ed|ing)|touch(es|ed)? me|molest|someone is hurting|scared of (my|him|her)|unsafe at home)/i;
+const SAD_RE = /(i am|i.?m|im|feel|feeling)\s+(so\s+)?(sad|lonely|alone|scared|afraid|unhappy|depressed|worried|anxious|upset)|nobody likes me|no one likes me|i have no friends|i hate myself|bullied|bullying|being mean to me/i;
 const PERSONAL_SHARE_RE = /(my (full )?name is|i am called|my (phone|number|address|email|password|school)\b|i live (at|in|on)|\b\d{3}[-. )]*\d{3}[-. ]*\d{4}\b|[\w.+-]+@[\w-]+\.[\w.]+|\b\d{1,5}\s+\w+\s+(street|st|road|rd|avenue|ave|lane|ln|drive|dr)\b|i go to .{2,30} school|my (mom|dad|mother|father|sister|brother|teacher) (is|named|name))/i;
 const PERSONAL_ASK_RE = /(how old are you|your age|where do you live|what.?s your (real )?name|who made you|are you a (boy|girl)|do you have (a )?(family|mom|dad|friends?)|are you (single|married)|your (phone|address|school|birthday))/i;
 const STUDENT_CHAT_RE = /(tell|message|text|send|say to|talk to|chat with|ask)\s+(\w+\s+)?(another|other|my)?\s*(student|friend|classmate|kid|him|her|them)\b|\bpass (this|a) message|send (a )?message to/i;
@@ -714,6 +716,7 @@ const STUDENT_CHAT_RE = /(tell|message|text|send|say to|talk to|chat with|ask)\s
 function bridgeFilter(question) {
   if (SELFHARM_RE.test(question)) return BRIDGE_HELP_MSG;
   if (ABUSE_RE.test(question)) return BRIDGE_ABUSE_MSG;
+  if (SAD_RE.test(question)) return BRIDGE_SAD_MSG;
   if (BAD_WORDS_RE.test(question) || HATE_RE.test(question)) return BRIDGE_ADULT_MSG;
   if (PERSONAL_SHARE_RE.test(question)) return BRIDGE_PRIVATE_MSG;
   if (PERSONAL_ASK_RE.test(question)) return BRIDGE_REPHRASE_MSG;
@@ -724,6 +727,8 @@ function bridgeFilter(question) {
 function bridgeClean(answer) {
   let a = (answer || "").replace(/\s+/g, " ").trim();
   if (!a) return BRIDGE_REPHRASE_MSG;
+  // Fixed founder-approved messages are never cut short.
+  if (a.startsWith("Sorry, please consult with an adult") || a.startsWith("Please ask this question differently")) return a.startsWith("Sorry") ? BRIDGE_ADULT_MSG : BRIDGE_REPHRASE_MSG;
   if (BAD_WORDS_RE.test(a) || HATE_RE.test(a)) return BRIDGE_ADULT_MSG;
   const sentences = a.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g) || [a];
   a = sentences.slice(0, 2).join("").trim();
