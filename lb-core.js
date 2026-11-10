@@ -574,7 +574,7 @@ function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));ret
    b.onclick=()=>{try{localStorage.setItem('lb_speed',String(v))}catch(e){}paint();try{bridgeSpeak('This is how fast I talk.',{mode:'conversational'})}catch(e){}};
    w.appendChild(b)});
   function paint(){const cur=LB_speed();[...w.querySelectorAll('button')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'})}
-  paint();document.body.appendChild(w)}
+  paint();document.body.appendChild(w);document.body.style.paddingBottom='130px'}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add);else add()})();
 
 /* ---------------------------------------------------------------------
