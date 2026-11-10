@@ -212,7 +212,7 @@ const reviewStep=el=>{const qs=reviewQs();
  qs.forEach((q,i)=>mountChoices(el.querySelector('#rv'+i),q,()=>{}))};
 
 const steps=[
- el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+C.introTitle+'</h2><p class="muted" style="margin:0;line-height:1.6">'+C.introLine+'</p></div><div class="obj">'+C.objective+'</div>'},
+ el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+C.introTitle+'</h2><p class="muted" style="margin:0;line-height:1.6">'+C.introLine+'</p></div><div class="obj">'+C.objective+'</div><p style="text-align:center;margin:18px 0 4px"><a class="btn btn-primary" href="linguabridge-lesson-video.html?n='+n+(review?'&review='+n:'')+'">Watch the lesson video</a></p><p class="muted" style="text-align:center;margin:0;font-size:.88rem">A short, fun video about today\'s lesson</p>'},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">'+C.vocab1Title+'</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Listen, then say each word out loud.</p><div id="vl"></div><p class="say" id="say" aria-live="polite"></p>';
   vocab(el.querySelector('#vl'),C.vocab1,el.querySelector('#say'))},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">When do we say it?</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Tap to hear each one.</p><div id="w"></div>';

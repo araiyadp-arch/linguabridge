@@ -175,8 +175,11 @@ const BR=`<svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/200
       </svg>`;
 const vid=document.getElementById('vid');
 const s=LB.get();
-const mine=s.completed.filter(c=>c.level===s.level),last=mine[mine.length-1]||{n:1};
+const mine=s.completed.filter(c=>c.level===s.level),last0=mine[mine.length-1]||{n:1};
+/* ?n= lets the lesson page open ITS OWN video (2026-11-10); with no ?n= it is the recap of the lesson just finished. */
+const Q=new URLSearchParams(location.search),qn=parseInt(Q.get('n'),10),last=qn>0?{n:qn}:last0;
 const S=advFor(s.level,last.n).video;
+if(qn>0){const ct=document.querySelector('.actions .btn-primary');if(ct){ct.textContent='Back to my lesson';ct.href='linguabridge-lesson.html?n='+qn+(Q.get('review')?'&review='+Q.get('review'):'')}const sk=document.querySelector('.actions .btn-secondary');if(sk)sk.style.display='none'}
 if(VIDEO_URL){vid.innerHTML='<video controls playsinline src="'+VIDEO_URL+'"></video>';document.getElementById('ctrls').style.display='none'}
 else{
  let i=0,tmr=null,playing=false,mute=false;
