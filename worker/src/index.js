@@ -1108,8 +1108,43 @@ async function handleSaveProgress(request, env) {
   return jsonResponse({ ok: true, updated_at: now }, 200, request);
 }
 
+
+// ---- Text-to-speech (added 2026-11-10) ----
+// Friendly voices from Workers AI (Deepgram Aura). Signed-in users only. Audio is cached at
+// Cloudflare's edge so each line is only generated once. The site falls back to the device voice on any error.
+const TTS_VOICES = { boy: "arcas", girl: "luna" };
+const TTS_SAMPLE_SPEAKERS = ["angus","asteria","arcas","orion","orpheus","athena","luna","zeus","perseus","helios","hera","stella"];
+async function handleTts(request, env, url, ctx) {
+  if (!(await getSessionUser(request, env))) {
+    return jsonResponse({ error: "Please log in." }, 401, request);
+  }
+  const text = (url.searchParams.get("text") || "").trim().slice(0, 220);
+  if (!text) return jsonResponse({ error: "No text." }, 400, request);
+  let speaker = TTS_VOICES[url.searchParams.get("voice")] || TTS_VOICES.boy;
+  const sp = url.searchParams.get("speaker");
+  if (sp && TTS_SAMPLE_SPEAKERS.includes(sp)) speaker = sp;
+  const cacheKey = new Request("https://tts.cache.lingua-bridge.us/" + speaker + "/" + encodeURIComponent(text));
+  const cache = caches.default;
+  let audio = await cache.match(cacheKey);
+  if (!audio) {
+    try {
+      const resp = await env.AI.run("@cf/deepgram/aura-1", { text, speaker, encoding: "mp3" }, { returnRawResponse: true });
+      const buf = await resp.arrayBuffer();
+      if (!buf.byteLength) throw new Error("empty");
+      audio = new Response(buf, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
+      ctx.waitUntil(cache.put(cacheKey, audio.clone()));
+    } catch (e) {
+      return jsonResponse({ error: "Voice unavailable." }, 503, request);
+    }
+  }
+  return new Response(audio.body, {
+    status: 200,
+    headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff", ...corsHeaders(request) },
+  });
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     // CORS preflight
@@ -1161,6 +1196,9 @@ export default {
     }
     if (url.pathname === "/api/progress" && request.method === "POST") {
       return handleSaveProgress(request, env);
+    }
+    if (url.pathname === "/api/tts" && request.method === "GET") {
+      return handleTts(request, env, url, ctx);
     }
     if (url.pathname === "/api/ask-bridge" && request.method === "POST") {
       return handleAskBridge(request, env);

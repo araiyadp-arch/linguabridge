@@ -110,7 +110,7 @@ pron:{"bella":{"hello":"SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAA
 voice(){const v=LB.get().voice;return this.voices[v]?v:BRIDGE_VOICE_CONFIG.voiceId}};
 let _cur=null,_failed=false;
 function slugOf(t){return t.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim().replace(/\s+/g,'-').slice(0,120)}
-function stopAudio(){try{speechSynthesis.cancel()}catch(e){}if(_cur){_cur.onended=null;_cur.onerror=null;_cur.pause();_cur=null}}
+function stopAudio(){_tok++;try{speechSynthesis.cancel()}catch(e){}if(_cur){_cur.onended=null;_cur.onerror=null;_cur.pause();_cur=null}}
 function deviceSay(t,mode,vid){try{speechSynthesis.speak(utter(t,mode||'conversational',vid))}catch(e){}}
 function playClip(b64,t,mode,done){const a=new Audio('data:audio/mpeg;base64,'+b64);_cur=a;_failed=false;a.volume=BRIDGE_VOICE_CONFIG.volume;a.playbackRate=BRIDGE_VOICE_CONFIG.rate[mode||'conversational']*LB_speed();
  // The recorded clips' actual timbre is fixed (baked into the audio, no
@@ -135,12 +135,26 @@ function playClip(b64,t,mode,done){const a=new Audio('data:audio/mpeg;base64,'+b
    recorded clip falls back to the device's best girl voice). The Slow/Normal/Fast control scales both. */
 function LB_clip(t,mode){if(LB_voiceId()!=='girl')return null;const s=slugOf(t);
  return (mode==='pronunciation'&&AUDIO.pron.bella&&AUDIO.pron.bella[s])||(AUDIO.data.bella&&AUDIO.data.bella[s])||null}
+/* Cloud voices (2026-11-10): friendly Boy/Girl voices from the Worker (/api/tts, Cloudflare Workers AI).
+   Signed-in only; if it is unavailable the old Bella clip / device voice plays instead (cloudOff pauses retries for 3 min). */
+let _tok=0,_cloudOff=0;
+function cloudSay(t,mode,done,fb){const my=++_tok;
+ if(Date.now()<_cloudOff||/[\u{1F300}-\u{1FAFF}]/u.test(t)){fb();return}
+ const url='https://api.lingua-bridge.us/api/tts?voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&text='+encodeURIComponent(t.slice(0,220));
+ fetch(url,{credentials:'include'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.blob()}).then(b=>{
+  if(my!==_tok)return;const a=new Audio(URL.createObjectURL(b));_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
+  a.playbackRate=(mode==='pronunciation'?0.9:1)*LB_speed();try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
+  let bad=false;const f=()=>{if(bad)return;bad=true;if(my===_tok)fb()};
+  a.onended=()=>{if(done)done()};a.onerror=f;const r=a.play();if(r&&r.catch)r.catch(f)
+ }).catch(()=>{if(my!==_tok)return;_cloudOff=Date.now()+180000;fb()})}
 function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational';stopAudio();
- const b64=LB_clip(t,mode);if(b64){playClip(b64,t,mode,opts.done);return}
- try{const u=utter(t,mode,LB_voiceId());if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}}
+ const old=()=>{const b64=LB_clip(t,mode);if(b64){playClip(b64,t,mode,opts.done);return}
+  try{const u=utter(t,mode,LB_voiceId());if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}};
+ cloudSay(t,mode,opts.done,old)}
 function bridgeSpeakSeq(arr,mode){stopAudio();let i=0;const next=()=>{if(i>=arr.length)return;const t=arr[i++];const m=mode||'conversational';
- const b64=LB_clip(t,m);if(b64){playClip(b64,t,m,next);return}
- try{const u=utter(t,m,LB_voiceId());u.onend=next;u.onerror=next;speechSynthesis.speak(u)}catch(e){next()}};next()}
+ const old=()=>{const b64=LB_clip(t,m);if(b64){playClip(b64,t,m,next);return}
+  try{const u=utter(t,m,LB_voiceId());u.onend=next;u.onerror=next;speechSynthesis.speak(u)}catch(e){next()}};
+ cloudSay(t,m,next,old)};next()}
 // Backward-compatible aliases — existing pages that call speak()/speakSeq() automatically get
 // conversational mode through BRIDGE_VOICE_CONFIG without needing to change their call sites.
 function speak(t){bridgeSpeak(t,{mode:'conversational'})}
