@@ -91,7 +91,7 @@ const VOICE={ // kept only for the browser-fallback voice PICK; rate now always 
  list(){try{return speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang)&&!this.skip.test(v.name))}catch(e){return[]}},
  pick(force){const all=this.list(),st=LB.get();
   if(!force&&st.voice){const v=all.find(x=>x.name===st.voice);if(v)return v}
-  if(force==='daniel'||st.voice==='daniel'){for(const k of this.malePrefs){const v=all.find(x=>x.name.includes(k));if(v)return v}}
+  if(force==='daniel'||(!force&&st.voice==='daniel')){for(const k of this.malePrefs){const v=all.find(x=>x.name.includes(k));if(v)return v}}
   for(const k of this.prefs){const v=all.find(x=>x.name.includes(k)&&/en[-_]US/i.test(x.lang));if(v)return v}
   return all.find(x=>/en[-_]US/i.test(x.lang))||all[0]||null}
 };
@@ -133,9 +133,9 @@ function playClip(b64,t,mode,done){const a=new Audio('data:audio/mpeg;base64,'+b
    provider later, branch on BRIDGE_VOICE_CONFIG.provider here — every caller stays unchanged. */
 /* All voices are now Daniel (device voice), at the founder's request 2026-11-09. */
 function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational';stopAudio();
- try{const u=utter(t,mode,'daniel');if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}}
+ try{const u=utter(t,mode,LB_voiceId());if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}}
 function bridgeSpeakSeq(arr,mode){stopAudio();let i=0;const next=()=>{if(i>=arr.length)return;const t=arr[i++];
- try{const u=utter(t,mode||'conversational','daniel');u.onend=next;u.onerror=next;speechSynthesis.speak(u)}catch(e){next()}};next()}
+ try{const u=utter(t,mode||'conversational',LB_voiceId());u.onend=next;u.onerror=next;speechSynthesis.speak(u)}catch(e){next()}};next()}
 // Backward-compatible aliases — existing pages that call speak()/speakSeq() automatically get
 // conversational mode through BRIDGE_VOICE_CONFIG without needing to change their call sites.
 function speak(t){bridgeSpeak(t,{mode:'conversational'})}
@@ -524,7 +524,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
             const lb = document.createElement('button');
             lb.type = 'button'; lb.className = 'ab-listen'; lb.textContent = 'Listen';
             lb.style.cssText = 'margin-top:6px;border:1px solid #159FE8;background:#fff;color:#0B6FAE;border-radius:999px;padding:4px 12px;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer;display:block';
-            lb.addEventListener('click', function () { bridgeSpeak(data.answer, { voice: 'daniel' }); });
+            lb.addEventListener('click', function () { bridgeSpeak(data.answer); });
             ansDiv.appendChild(lb);
           }
           history.push({ role: 'user', content: q });
@@ -560,6 +560,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
 
 
 /* ---- Voice speed control (2026-11-09): kids pick Slow / Normal / Fast; applies to every spoken voice. ---- */
+function LB_voiceId(){try{return localStorage.getItem('lb_voice_gender')==='girl'?'girl':'daniel'}catch(e){return'daniel'}}
 function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));return v>=.5&&v<=1.5?v:1}catch(e){return 1}}
 (function(){
  const OPTS=[['Slow',.7],['Normal',1],['Fast',1.25]];
@@ -569,11 +570,17 @@ function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));ret
   const w=document.createElement('div');w.id='lbSpeed';w.setAttribute('role','group');w.setAttribute('aria-label','Voice speed');
   w.style.cssText='position:fixed;left:14px;bottom:70px;z-index:9998;background:#fff;border:2px solid #CFE8F8;border-radius:18px;padding:6px 8px;box-shadow:0 4px 10px rgba(11,59,107,.15);font:600 .78rem Lexend,sans-serif;color:#0B3B6B;display:flex;align-items:center;gap:4px';
   w.innerHTML='<span style="margin:0 4px 0 2px">Voice speed</span>';
+  const VR=document.createElement('div');VR.style.cssText='display:flex;align-items:center;gap:4px;width:100%;margin-bottom:4px';
+  VR.innerHTML='<span style="margin:0 4px 0 2px">Voice</span>';
+  [['Boy','daniel'],['Girl','girl']].forEach(([n,id])=>{const b=document.createElement('button');b.type='button';b.textContent=n;b.dataset.g=id;
+   b.style.cssText='border:0;border-radius:999px;padding:6px 14px;font:inherit;cursor:pointer;background:#EAF6FF;color:#0B3B6B';
+   b.onclick=()=>{try{localStorage.setItem('lb_voice_gender',id==='girl'?'girl':'boy')}catch(e){}paint();try{bridgeSpeak('Hi! This is my voice.',{mode:'conversational'})}catch(e){}};VR.appendChild(b)});
+  w.style.flexWrap='wrap';w.insertBefore(VR,w.firstChild);
   OPTS.forEach(([n,v])=>{const b=document.createElement('button');b.type='button';b.textContent=n;b.dataset.v=v;
    b.style.cssText='border:0;border-radius:999px;padding:6px 11px;font:inherit;cursor:pointer;background:#EAF6FF;color:#0B3B6B';
    b.onclick=()=>{try{localStorage.setItem('lb_speed',String(v))}catch(e){}paint();try{bridgeSpeak('This is how fast I talk.',{mode:'conversational'})}catch(e){}};
    w.appendChild(b)});
-  function paint(){const cur=LB_speed();[...w.querySelectorAll('button')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'})}
+  function paint(){const gid=LB_voiceId();[...w.querySelectorAll('button[data-g]')].forEach(b=>{const on=b.dataset.g===gid;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});const cur=LB_speed();[...w.querySelectorAll('button[data-v]')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});return;[...w.querySelectorAll('button')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'})}
   paint();document.body.appendChild(w);document.body.style.paddingBottom='130px'}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add);else add()})();
 
