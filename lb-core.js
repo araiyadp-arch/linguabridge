@@ -204,6 +204,10 @@ function LB_gameStyles(){
  .gm-say{display:flex;align-items:center;gap:10px;margin-bottom:14px}
  .gm-bridge{flex:0 0 46px;height:46px;border-radius:50%;background:#159FE8;color:#fff;font-weight:700;font-size:1.3rem;display:flex;align-items:center;justify-content:center;font-family:var(--font-head,serif)}
  .gm-bubble{background:#fff;border-radius:16px 16px 16px 4px;padding:10px 14px;font-weight:600;color:#0B3B6B;box-shadow:0 2px 6px rgba(11,59,107,.12);flex:1;line-height:1.35}
+ .gm-pic{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:24px;box-shadow:0 4px 0 #CFE8F8;min-height:170px;font-size:7rem;line-height:1;margin-bottom:12px}
+ .gm-pic svg,.gm-pic .lbe{width:130px;height:130px}
+ .gm-clue{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;color:#0B3B6B;font-weight:500;text-align:center}
+ .gm-clue .gm-ear{flex:0 0 40px;width:40px;height:40px}
  .gm-word{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 16px}
  .gm-word b{font-family:var(--font-head,serif);font-size:2rem;color:#0B3B6B;background:#fff;padding:8px 22px;border-radius:16px;box-shadow:0 3px 0 #CFE8F8}
  .gm-ear{border:none;background:#159FE8;color:#fff;border-radius:50%;width:44px;height:44px;cursor:pointer;font-size:1.2rem;box-shadow:0 3px 0 #0B6FAE;display:flex;align-items:center;justify-content:center}
@@ -246,25 +250,35 @@ function LB_gmWin(sh,text,onDone){
  sh.dots.querySelectorAll('.gm-dot').forEach(d=>{d.classList.remove('now');d.classList.add('on')});
  sh.body.innerHTML='<div class="gm-win"><div class="kids">'+[0,1,2,3].map(i=>LB_kidSVG(i,74)).join('')+'</div><div class="stars">'+LB_starSVG(46)+LB_starSVG(56)+LB_starSVG(46)+'</div><h3>'+text+'</h3></div>';
  sh.say('Hooray! You finished! Tap Next to keep going.');LB_confetti();onDone()}
-/* Find the Picture: one word at a time, tap the picture that matches. Wrong picks wobble, never penalised. */
+/* What is it?: one picture at a time. The picture is shown BIG with a short clue (read aloud with the
+   speaker button), and the child taps the right WORD. Pictures are never the thing guessed between,
+   so an unclear drawing can't make the game confusing. After two wrong taps Bridge shows the answer,
+   so nobody gets stuck. Wrong taps are never penalised. */
 function LB_mountMatchGame(el,items,onDone){
  const sh=LB_gmShell(el);const order=LB_shuffle(items.map((x,i)=>i));let step=0;
  function ask(){
-  if(step>=order.length){LB_gmWin(sh,'You matched every word!',onDone);return}
+  if(step>=order.length){LB_gmWin(sh,'You learned every word!',onDone);return}
   const it=items[order[step]];sh.setDots(order.length,step);
-  sh.say('Which picture is "'+it.word+'"? Tap it!');
-  const choices=LB_shuffle([it].concat(LB_shuffle(items.filter(x=>x!==it)).slice(0,3)));
-  sh.body.innerHTML='<div class="gm-word"><b></b><button class="gm-ear" type="button" aria-label="Hear the word">'+LB_speakerSVG()+'</button></div><div class="gm-grid'+(choices.length>=4?' n4':'')+'"></div>';
-  sh.body.querySelector('b').textContent=it.word;
-  sh.body.querySelector('.gm-ear').onclick=()=>{try{bridgeSpeak(it.word,{mode:'pronunciation'})}catch(e){}};
-  const grid=sh.body.querySelector('.gm-grid');let locked=false;
-  choices.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='gm-card';b.textContent=c.emoji;b.setAttribute('aria-label','picture choice');
+  sh.say('Look at the picture. What is it? Tap the right word!');
+  const choices=LB_shuffle([it].concat(LB_shuffle(items.filter(x=>x!==it)).slice(0,2)));
+  sh.body.innerHTML='<div class="gm-pic"></div><div class="gm-clue"><span></span><button class="gm-ear" type="button" aria-label="Hear the clue">'+LB_speakerSVG()+'</button></div><div class="gm-opts"></div>';
+  sh.body.querySelector('.gm-pic').textContent=it.emoji;
+  const clue=it.hint||'';sh.body.querySelector('.gm-clue span').textContent=clue;
+  if(!clue)sh.body.querySelector('.gm-clue').style.display='none';
+  sh.body.querySelector('.gm-ear').onclick=()=>{try{bridgeSpeak(clue,{mode:'conversational'})}catch(e){}};
+  const opts=sh.body.querySelector('.gm-opts');let locked=false,wrong=0;
+  function win(b){locked=true;b.classList.add('right');sh.say(LB_pickMsg(GM_CHEER)+' It is "'+it.word+'".');
+   try{bridgeSpeak(it.word,{mode:'pronunciation'})}catch(e){}
+   const d=sh.dots.children[step];if(d){d.classList.remove('now');d.classList.add('on')}
+   setTimeout(()=>{step++;ask()},1700)}
+  const btns=choices.map(c=>{const b=document.createElement('button');b.type='button';b.className='gm-chip';b.textContent=c.word;
    b.onclick=()=>{if(locked)return;
-    if(c===it){locked=true;b.classList.add('right');sh.say(LB_pickMsg(GM_CHEER)+' That is "'+it.word+'".');
-     const d=sh.dots.children[step];if(d){d.classList.remove('now');d.classList.add('on')}
-     setTimeout(()=>{step++;ask()},1100)}
-    else{b.classList.add('wrong');sh.say(LB_pickMsg(GM_TRY));setTimeout(()=>b.classList.remove('wrong'),400)}};
-   grid.appendChild(b)})}
+    if(c===it){win(b)}
+    else{wrong++;b.classList.add('wrong');b.disabled=true;
+     if(wrong>=2){const right=btns[choices.indexOf(it)];sh.say('Here is the answer: "'+it.word+'". Tap it!');right.classList.add('right')}
+     else sh.say(LB_pickMsg(GM_TRY))}};
+   opts.appendChild(b);return b});
+ }
  ask()}
 /* Finish the Sentence: one line at a time from the lesson's own conversation. Tap the missing word. */
 function LB_mountFillBlankGame(el,items,conversation,onDone){
@@ -299,9 +313,9 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
  const tier={explorer:1,builder:2,communicator:3,leader:4}[level]||1;
  const items=LB_gameItems(lesson,tier>=4?8:tier>=2?6:4);
  const wrap=(title,fn)=>{el.innerHTML='<h2 style="margin-bottom:10px" id="lbGameTitle">'+title+'</h2><div id="lbGameBox"></div>';fn(el.querySelector('#lbGameBox'),el.querySelector('#lbGameTitle'))};
- if(tier<=2){wrap('Find the Picture',box=>LB_mountMatchGame(box,items,onAllDone));return}
+ if(tier<=2){wrap('What Is It?',box=>LB_mountMatchGame(box,items,onAllDone));return}
  if(tier===3){wrap('Finish the Sentence',box=>LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone));return}
- wrap('Find the Picture (1 of 2)',(box,t)=>LB_mountMatchGame(box,items,()=>{t.textContent='Finish the Sentence (2 of 2)';LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone)}))}
+ wrap('What Is It? (1 of 2)',(box,t)=>LB_mountMatchGame(box,items,()=>{t.textContent='Finish the Sentence (2 of 2)';LB_mountFillBlankGame(box,items,lesson.conversation,onAllDone)}))}
 
 /* ------------------------------------------------------------------
    ASK BRIDGE — a floating "ask a question" chat widget, available on
