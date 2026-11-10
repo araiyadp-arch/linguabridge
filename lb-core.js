@@ -551,6 +551,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
   }
 
   function init() {
+    if (window.LB_NO_ASK) return; // public pages (free sample lesson) have no chat
     injectStyles();
     buildWidget();
   }
@@ -586,7 +587,15 @@ function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));ret
    b.onclick=()=>{try{localStorage.setItem('lb_speed',String(v))}catch(e){}paint();try{bridgeSpeak('This is how fast I talk.',{mode:'conversational'})}catch(e){}};
    w.appendChild(b)});
   function paint(){const gid=LB_voiceId();[...w.querySelectorAll('button[data-g]')].forEach(b=>{const on=b.dataset.g===gid;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});const cur=LB_speed();[...w.querySelectorAll('button[data-v]')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});return;[...w.querySelectorAll('button')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'})}
-  paint();document.body.appendChild(w);document.body.style.paddingBottom='130px'}
+  paint();
+  /* collapsed by default so it never covers lesson content; tap "Voice" to open */
+  const inner=document.createElement('div');inner.style.cssText='display:none;flex-wrap:wrap;align-items:center;gap:4px;width:100%';
+  while(w.firstChild)inner.appendChild(w.firstChild);
+  const tg=document.createElement('button');tg.type='button';tg.textContent='Voice settings';tg.setAttribute('aria-expanded','false');
+  tg.style.cssText='border:0;background:transparent;font:inherit;color:#0B3B6B;cursor:pointer;padding:4px 8px;font-weight:700';
+  tg.onclick=()=>{const o=inner.style.display==='none';inner.style.display=o?'flex':'none';tg.textContent=o?'Close':'Voice settings';tg.setAttribute('aria-expanded',o?'true':'false')};
+  w.style.flexDirection='column';w.style.alignItems='stretch';w.appendChild(inner);w.appendChild(tg);
+  document.body.appendChild(w);document.body.style.paddingBottom='120px'}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add);else add()})();
 
 /* ---------------------------------------------------------------------
@@ -601,7 +610,7 @@ LB.logout=function(){const go=()=>{LB.wipeLocal();location.replace('linguabridge
 (function(){
  function add(){
   if(/login|signup|index|homepage|about/.test(location.pathname)&&!/dashboard|lesson|badge|tomorrow/.test(location.pathname))return;
-  if(document.getElementById('lbLogoutBtn'))return;
+  if(/try|contact/.test(location.pathname)||document.getElementById('lbLogoutBtn'))return;
   const b=document.createElement('button');b.id='lbLogoutBtn';b.type='button';b.textContent='Log out';
   b.style.cssText='position:fixed;left:14px;bottom:14px;z-index:9998;background:#fff;color:#0B3B6B;border:2px solid #CFE8F8;border-radius:999px;padding:8px 16px;font:600 .85rem Lexend,sans-serif;cursor:pointer;box-shadow:0 4px 10px rgba(11,59,107,.15)';
   b.onclick=LB.logout;document.body.appendChild(b)}
