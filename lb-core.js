@@ -187,7 +187,23 @@ function LB_gameItems(lesson,max){
 function LB_shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 /* ---- Games v2 (2026-11-08): one question at a time, big friendly cards, Bridge cheers. ---- */
 /* ---- Confetti + original drawn kids (2026-11-09). No emoji anywhere: these are SVG/canvas. ---- */
-function LB_confetti(ms){
+/* Finish-line music (2026-11-15): a short fanfare made with the Web Audio API (no audio files), played with the confetti.
+   'small' = quick win jingle (game finished), 'big' = full celebration (lesson badge). */
+let _fac=null;
+function LB_fanfare(kind){try{
+ const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;_fac=_fac||new AC();if(_fac.state==='suspended')_fac.resume();
+ const big=kind==='big',root=262,t=_fac.currentTime+.05,m=_fac.createGain();m.gain.value=.2;m.connect(_fac.destination);
+ const note=(semi,st,len,type,vol)=>{const o=_fac.createOscillator(),g=_fac.createGain();o.type=type||'triangle';o.frequency.value=root*Math.pow(2,semi/12);
+  g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(vol||.5,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+len);o.connect(g);g.connect(m);o.start(st);o.stop(st+len+.05)};
+ const run=big?[0,4,7,12,7,12,16,19]:[0,4,7,12];const step=big?.13:.12;
+ run.forEach((n,i)=>{note(n,t+i*step,.45,'triangle',.5);note(n+12,t+i*step,.3,'sine',.14)});
+ const end=t+run.length*step;
+ [0,4,7,12,16].forEach(n=>note(n,end,big?1.6:1.0,'triangle',.32));
+ [12,16,19,24].forEach((n,i)=>note(n,end+.05+i*.07,.5,'sine',.12));
+ if(big){[0,7].forEach(n=>note(n-12,end,1.8,'sine',.4))}
+}catch(e){}}
+window.LB_fanfare=LB_fanfare;
+function LB_confetti(ms){if(!ms||ms>=1500){try{LB_fanfare(ms>=3000?'big':'small')}catch(e){}}
  try{const c=document.createElement('canvas');c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:99999';
   c.width=innerWidth;c.height=innerHeight;document.body.appendChild(c);const x=c.getContext('2d');
   const col=['#FFC83D','#159FE8','#12864A','#F0604D','#9B6BE0','#FF8FB1','#7FCB6E'];
