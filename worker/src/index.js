@@ -1112,7 +1112,7 @@ async function handleSaveProgress(request, env) {
 // ---- Text-to-speech (added 2026-11-10) ----
 // Friendly voices from Workers AI (Deepgram Aura). Signed-in users only. Audio is cached at
 // Cloudflare's edge so each line is only generated once. The site falls back to the device voice on any error.
-const TTS_VOICES = { boy: "arcas", girl: "luna" };
+const TTS_VOICES = { boy: "arcas", girl: "asteria" };
 const TTS_SAMPLE_SPEAKERS = ["angus","asteria","arcas","orion","orpheus","athena","luna","zeus","perseus","helios","hera","stella"];
 // Aura-2 voices (voice lab only, 2026-11-15): a newer, more natural family.
 const TTS2_SPEAKERS = ["thalia","andromeda","helena","apollo","arcas","aries","amalthea","asteria","athena","atlas","aurora","callista","cora","cordelia","delia","draco","electra","harmonia","hera","hermes","hyperion","iris","janus","juno","jupiter","luna","mars","minerva","neptune","odysseus","ophelia","orion","orpheus","pandora","phoebe","pluto","saturn","selene","theia","vesta","zeus"];
