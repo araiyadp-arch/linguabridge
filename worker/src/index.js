@@ -1114,6 +1114,8 @@ async function handleSaveProgress(request, env) {
 // Cloudflare's edge so each line is only generated once. The site falls back to the device voice on any error.
 const TTS_VOICES = { boy: "arcas", girl: "luna" };
 const TTS_SAMPLE_SPEAKERS = ["angus","asteria","arcas","orion","orpheus","athena","luna","zeus","perseus","helios","hera","stella"];
+// Aura-2 voices (voice lab only, 2026-11-15): a newer, more natural family.
+const TTS2_SPEAKERS = ["thalia","andromeda","helena","apollo","arcas","aries","amalthea","asteria","athena","atlas","aurora","callista","cora","cordelia","delia","draco","electra","harmonia","hera","hermes","hyperion","iris","janus","juno","jupiter","luna","mars","minerva","neptune","odysseus","ophelia","orion","orpheus","pandora","phoebe","pluto","saturn","selene","theia","vesta","zeus"];
 async function handleTts(request, env, url, ctx) {
   if (!(await getSessionUser(request, env))) {
     return jsonResponse({ error: "Please log in." }, 401, request);
@@ -1123,13 +1125,26 @@ async function handleTts(request, env, url, ctx) {
   let speaker = TTS_VOICES[url.searchParams.get("voice")] || TTS_VOICES.boy;
   const sp = url.searchParams.get("speaker");
   if (sp && TTS_SAMPLE_SPEAKERS.includes(sp)) speaker = sp;
-  const cacheKey = new Request("https://tts.cache.lingua-bridge.us/" + speaker + "/" + encodeURIComponent(text));
+  const engine = url.searchParams.get("engine") || "aura1";
+  if (engine === "aura2" && TTS2_SPEAKERS.includes(sp || "")) speaker = sp;
+  const cacheKey = new Request("https://tts.cache.lingua-bridge.us/" + engine + "/" + speaker + "/" + encodeURIComponent(text));
   const cache = caches.default;
   let audio = await cache.match(cacheKey);
   if (!audio) {
     try {
-      const resp = await env.AI.run("@cf/deepgram/aura-1", { text, speaker, encoding: "mp3" }, { returnRawResponse: true });
-      const buf = await resp.arrayBuffer();
+      let buf;
+      if (engine === "melo") {
+        const out = await env.AI.run("@cf/myshell-ai/melotts", { prompt: text, lang: "en" });
+        const b64 = typeof out === "string" ? out : out && out.audio;
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        buf = bytes.buffer;
+      } else {
+        const model = engine === "aura2" ? "@cf/deepgram/aura-2-en" : "@cf/deepgram/aura-1";
+        const resp = await env.AI.run(model, { text, speaker, encoding: "mp3" }, { returnRawResponse: true });
+        buf = await resp.arrayBuffer();
+      }
       if (!buf.byteLength) throw new Error("empty");
       audio = new Response(buf, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
       ctx.waitUntil(cache.put(cacheKey, audio.clone()));
@@ -1140,6 +1155,56 @@ async function handleTts(request, env, url, ctx) {
   return new Response(audio.body, {
     status: 200,
     headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff", ...corsHeaders(request) },
+  });
+}
+
+// ---- AI photos for lessons/games/videos (added 2026-11-15) ----
+// Makes a realistic, child-safe photo for a word or phrase with Workers AI (FLUX.1 schnell).
+// Signed-in users only. The seed comes from the word, so a word always gets the same picture,
+// and the result is cached at Cloudflare's edge. The site shows its normal icon if this fails.
+const PHOTO_OK_RE = /^[A-Za-z0-9 ,.'!?\-\/&]+$/;
+function photoSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) % 1000000;
+}
+async function handlePhoto(request, env, url, ctx) {
+  if (!(await getSessionUser(request, env))) {
+    return jsonResponse({ error: "Please log in." }, 401, request);
+  }
+  const w = (url.searchParams.get("w") || "").trim().slice(0, 60);
+  const h = (url.searchParams.get("h") || "").trim().slice(0, 140);
+  if (!w || !PHOTO_OK_RE.test(w) || (h && !PHOTO_OK_RE.test(h))) {
+    return jsonResponse({ error: "Bad request." }, 400, request);
+  }
+  if (BAD_WORDS_RE.test(w) || BAD_WORDS_RE.test(h)) {
+    return jsonResponse({ error: "Not allowed." }, 400, request);
+  }
+  const key = (w + "|" + h).toLowerCase();
+  const cacheKey = new Request("https://photo.cache.lingua-bridge.us/v1/" + encodeURIComponent(key));
+  const cache = caches.default;
+  let hit = await cache.match(cacheKey);
+  if (!hit) {
+    const prompt =
+      'A bright, realistic, high quality photograph for a children\'s English lesson. It shows: "' + w + '"' +
+      (h ? " (" + h + ")" : "") +
+      ". One clear main subject in the center, simple clean background, natural colors, happy and friendly, safe for young children. No text, no letters, no words, no watermark, no logos.";
+    try {
+      const out = await env.AI.run("@cf/black-forest-labs/flux-1-schnell", { prompt, steps: 4, seed: photoSeed(key) });
+      const b64 = out && out.image;
+      if (!b64) throw new Error("no image");
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      hit = new Response(bytes, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=2592000" } });
+      ctx.waitUntil(cache.put(cacheKey, hit.clone()));
+    } catch (e) {
+      return jsonResponse({ error: "Photo unavailable." }, 503, request);
+    }
+  }
+  return new Response(hit.body, {
+    status: 200,
+    headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff", ...corsHeaders(request) },
   });
 }
 
@@ -1196,6 +1261,9 @@ export default {
     }
     if (url.pathname === "/api/progress" && request.method === "POST") {
       return handleSaveProgress(request, env);
+    }
+    if (url.pathname === "/api/photo" && request.method === "GET") {
+      return handlePhoto(request, env, url, ctx);
     }
     if (url.pathname === "/api/tts" && request.method === "GET") {
       return handleTts(request, env, url, ctx);

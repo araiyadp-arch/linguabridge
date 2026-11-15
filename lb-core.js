@@ -224,7 +224,7 @@ function LB_gameStyles(){
  .gm-bridge{flex:0 0 46px;height:46px;border-radius:50%;background:#159FE8;color:#fff;font-weight:700;font-size:1.3rem;display:flex;align-items:center;justify-content:center;font-family:var(--font-head,serif)}
  .gm-bubble{background:#fff;border-radius:16px 16px 16px 4px;padding:10px 14px;font-weight:600;color:#0B3B6B;box-shadow:0 2px 6px rgba(11,59,107,.12);flex:1;line-height:1.35}
  .gm-pic{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:24px;box-shadow:0 4px 0 #CFE8F8;min-height:170px;font-size:7rem;line-height:1;margin-bottom:12px}
- .gm-pic svg,.gm-pic .lbe{width:130px;height:130px}
+ .gm-pic svg,.gm-pic .lbe{width:130px;height:130px}.gm-pic{min-height:230px!important;padding:10px}.gm-pic img.lbphoto{width:100%;max-width:340px;height:230px;object-fit:cover;border-radius:20px;display:block}
  .gm-clue{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;color:#0B3B6B;font-weight:500;text-align:center}
  .gm-clue .gm-ear{flex:0 0 40px;width:40px;height:40px}
  .gm-word{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 16px}
@@ -273,6 +273,17 @@ function LB_gmWin(sh,text,onDone){
    speaker button), and the child taps the right WORD. Pictures are never the thing guessed between,
    so an unclear drawing can't make the game confusing. After two wrong taps Bridge shows the answer,
    so nobody gets stuck. Wrong taps are never penalised. */
+/* AI photos (2026-11-15): real-looking photos for words/phrases, made by the Worker (/api/photo).
+   The normal icon shows first and is swapped for the photo once it loads. If photos are unavailable the icon stays. */
+let _phOff=0;
+function LB_photoURL(w,h){return 'https://api.lingua-bridge.us/api/photo?w='+encodeURIComponent(String(w||'').replace(/<[^>]*>/g,'').slice(0,60))+'&h='+encodeURIComponent(String(h||'').replace(/<[^>]*>/g,'').slice(0,140))}
+function LB_photoInto(el,w,h,cls){if(!el||!w||Date.now()<_phOff)return;
+ const img=new Image();img.alt=String(w).replace(/<[^>]*>/g,'');img.decoding='async';img.className=cls||'lbphoto';
+ img.onload=()=>{el.textContent='';el.appendChild(img);el.classList.add('has-photo')};
+ img.onerror=()=>{_phOff=Date.now()+120000};
+ img.src=LB_photoURL(w,h)}
+function LB_photoWarm(list){try{list.forEach(x=>{if(x&&x[0]){const i=new Image();i.src=LB_photoURL(x[0],x[1])}})}catch(e){}}
+window.LB_photoInto=LB_photoInto;window.LB_photoWarm=LB_photoWarm;
 function LB_mountMatchGame(el,items,onDone){
  const sh=LB_gmShell(el);const order=LB_shuffle(items.map((x,i)=>i));let step=0;
  function ask(){
@@ -281,7 +292,7 @@ function LB_mountMatchGame(el,items,onDone){
   sh.say('Look at the picture. What is it? Tap the right word!');
   const choices=LB_shuffle([it].concat(LB_shuffle(items.filter(x=>x!==it)).slice(0,2)));
   sh.body.innerHTML='<div class="gm-pic"></div><div class="gm-clue"><span></span><button class="gm-ear" type="button" aria-label="Hear the clue">'+LB_speakerSVG()+'</button></div><div class="gm-opts"></div>';
-  sh.body.querySelector('.gm-pic').textContent=it.emoji;
+  sh.body.querySelector('.gm-pic').textContent=it.emoji;LB_photoInto(sh.body.querySelector('.gm-pic'),it.word,it.hint);
   const clue=it.hint||'';sh.body.querySelector('.gm-clue span').textContent=clue;
   if(!clue)sh.body.querySelector('.gm-clue').style.display='none';
   sh.body.querySelector('.gm-ear').onclick=()=>{try{bridgeSpeak(clue,{mode:'conversational'})}catch(e){}};

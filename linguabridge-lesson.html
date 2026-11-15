@@ -117,6 +117,7 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 .readbox{font-family:var(--font-head);font-size:1.15rem;line-height:1.9;color:var(--navy);background:var(--cream-deep);border-radius:14px;padding:18px 22px}
 .sub{margin:22px 0 10px;font-size:.95rem;font-weight:600;color:var(--sky-deep)}
 
+.vocab .ph{display:flex;align-items:center;justify-content:center;width:84px;height:84px;flex:none}.vocab .ph img.lbphoto{width:84px;height:84px;object-fit:cover;border-radius:18px;border:3px solid #fff;box-shadow:0 3px 0 #D5E6F5}
 </style><style id="lb-logo">.logo-mark{height:68px!important;width:auto!important;border-radius:14px;box-shadow:0 1px 6px rgba(11,59,107,.18);background:#fff}@media(max-width:560px){.logo-mark{height:56px!important}}</style>
 <link rel="stylesheet" href="lb-fun-app.css">
 </head><body>
@@ -182,8 +183,8 @@ function tryWord(key,say,btn){
  rec.onend=stop;
  try{rec.start()}catch(x){stop()}}
 function vocab(el,list,say){list.forEach(([w,hint,emoji])=>{const r=document.createElement('div');r.className='vocab';
- r.innerHTML='<span style="font-size:1.8rem" aria-hidden="true">'+emoji+'</span><span class="w">'+w+'<span class="h">'+hint+'</span></span><span class="btns"><button class="mini">🔊 Listen</button><button class="mini rec">🎤 Speak</button></span>';
- const [a,b]=r.querySelectorAll('button');a.setAttribute('aria-label','Listen to '+w);b.setAttribute('aria-label','Say '+w);
+ r.innerHTML='<span class="ph" style="font-size:1.8rem" aria-hidden="true">'+emoji+'</span><span class="w">'+w+'<span class="h">'+hint+'</span></span><span class="btns"><button class="mini">🔊 Listen</button><button class="mini rec">🎤 Speak</button></span>';
+ try{LB_photoInto(r.querySelector('.ph'),w,hint)}catch(e){}const [a,b]=r.querySelectorAll('button');a.setAttribute('aria-label','Listen to '+w);b.setAttribute('aria-label','Say '+w);
  a.onclick=()=>bridgeSpeak(w,{mode:'pronunciation'});b.onclick=()=>tryWord(w,say,b);el.appendChild(r)})}
 function lines(arr){speakSeq(arr)}
 
@@ -218,8 +219,8 @@ const steps=[
   vocab(el.querySelector('#vl'),C.vocab1,el.querySelector('#say'))},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">When do we say it?</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Tap to hear each one.</p><div id="w"></div>';
   C.whenSayIt.forEach(([w,h,e,sp])=>{
-   const r=document.createElement('div');r.className='vocab';r.innerHTML='<span style="font-size:1.8rem" aria-hidden="true">'+e+'</span><span class="w">'+w+'<span class="h">'+h+'</span></span><span class="btns"><button class="mini">🔊 Listen</button></span>';
-   r.querySelector('button').onclick=()=>speak(sp);el.querySelector('#w').appendChild(r)})},
+   const r=document.createElement('div');r.className='vocab';r.innerHTML='<span class="ph" style="font-size:1.8rem" aria-hidden="true">'+e+'</span><span class="w">'+w+'<span class="h">'+h+'</span></span><span class="btns"><button class="mini">🔊 Listen</button></span>';
+   try{LB_photoInto(r.querySelector('.ph'),w,h)}catch(x){}r.querySelector('button').onclick=()=>speak(sp);el.querySelector('#w').appendChild(r)})},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">'+C.vocab2Title+'</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Listen, then say each word out loud.</p><div id="vl"></div><p class="say" id="say" aria-live="polite"></p>';
   vocab(el.querySelector('#vl'),C.vocab2,el.querySelector('#say'))},
  el=>{const c=C.conversation.map(([who,txt])=>txt);

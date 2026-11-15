@@ -144,6 +144,11 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 .start span{background:linear-gradient(180deg,#FF9A5C,#FF7A59)!important;font-size:1.3rem!important;box-shadow:0 6px 0 rgba(0,0,0,.18)!important;animation:pop2 .6s ease-out,vpulse 2.2s 1s ease-in-out infinite}
 @keyframes vpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
 .vb{animation:bob 2.6s ease-in-out infinite}
+.scene .em.has-photo{font-size:1rem;animation:pop2 .6s ease-out}
+.scene .em img.vphoto{width:min(24%,165px);aspect-ratio:1;object-fit:cover;border-radius:30px;border:6px solid #fff;box-shadow:0 8px 0 rgba(11,59,107,.12),0 16px 30px rgba(11,59,107,.2);display:block;margin:0 auto}
+.scene .em.has-photo~.wd{font-size:clamp(1.8rem,6.5vw,3rem)}
+@media(max-width:640px){.scene .em img.vphoto{width:min(56%,230px)}}
+.vb{left:2%!important;bottom:15%!important;z-index:3}
 </style><style id="lb-logo">.logo-mark{height:68px!important;width:auto!important;border-radius:14px;box-shadow:0 1px 6px rgba(11,59,107,.18);background:#fff}@media(max-width:560px){.logo-mark{height:56px!important}}</style>
 <link rel="stylesheet" href="lb-fun-app.css">
 </head><body>
@@ -197,15 +202,16 @@ else{
  let i=0,tmr=null,playing=false,mute=false;
  /* slower pacing (2026-11-09): at least 1.7x the authored time, and enough time to hear the whole line */
  const dur=c=>Math.max(c.d*1.3,2800+String(c.say||'').split(' ').length*450);
+ try{LB_photoWarm(S.filter(x=>x.wd).map(x=>[x.wd,x.say]))}catch(e){}
  const total=S.reduce((a,x)=>a+dur(x),0);
  let sceneTok=0;
  function scene(k){const c=S[k];vid.className='vid bg'+(k%4);
-  vid.innerHTML='<div class="scene">'+(c.dl?'<div class="dl">'+c.dl.map((x,j)=>'<div style="animation-delay:'+(j*1.6)+'s">'+x+'</div>').join('')+'</div>':'<div class="em" aria-hidden="true">'+c.em+'</div>'+(c.wd?'<div class="wd">'+c.wd+'</div><div class="sayit">Say it with me!</div>':''))+'</div>'+BR.replace('class="bridge"','class="vb"')+'<div class="vk l">'+LB_kidSVG(k%4,84)+'</div><div class="vk r">'+LB_kidSVG((k+2)%4,84)+'</div>'+[8,24,70,88].map((x,j)=>'<i class="spk" style="left:'+x+'%;top:'+(10+j*14)+'%;background:'+['#FFC83D','#F0604D','#9B6BE0','#58B947'][(k+j)%4]+';animation-delay:'+(j*.5)+'s"></i>').join('')+'<div class="cap" aria-live="polite">'+c.say+'</div><div class="bar"><i id="pg"></i></div>';
+  vid.innerHTML='<div class="scene">'+(c.dl?'<div class="dl">'+c.dl.map((x,j)=>'<div style="animation-delay:'+(j*1.6)+'s">'+x+'</div>').join('')+'</div>':'<div class="em" id="vph" aria-hidden="true">'+c.em+'</div>'+(c.wd?'<div class="wd">'+c.wd+'</div><div class="sayit">Say it with me!</div>':''))+'</div>'+BR.replace('class="bridge"','class="vb"')+[8,24,70,88].map((x,j)=>'<i class="spk" style="left:'+x+'%;top:'+(10+j*14)+'%;background:'+['#FFC83D','#F0604D','#9B6BE0','#58B947'][(k+j)%4]+';animation-delay:'+(j*.5)+'s"></i>').join('')+'<div class="cap" aria-live="polite">'+c.say+'</div><div class="bar"><i id="pg"></i></div>';
   const done=S.slice(0,k).reduce((a,x)=>a+dur(x),0);
   const pg=document.getElementById('pg');pg.style.width=(done/total*100)+'%';pg.style.transition='width '+dur(c)+'ms linear';requestAnimationFrame(()=>requestAnimationFrame(()=>pg.style.width=((done+dur(c))/total*100)+'%'));
   /* 2026-11-10: move on as soon as the voice finishes (plus a short beat), instead of waiting a fixed time,
      so there are no long silent pauses. A safety timer still advances if the voice never reports back. */
-  const tok=++sceneTok,t0=Date.now();if(c.wd){try{LB_confetti(700)}catch(e){}}
+  const tok=++sceneTok,t0=Date.now();if(c.wd){try{LB_photoInto(document.getElementById('vph'),c.wd,c.say,'vphoto')}catch(e){}}if(c.wd){try{LB_confetti(700)}catch(e){}}
   const next=()=>{if(tok!==sceneTok||!playing)return;sceneTok++;clearTimeout(tmr);if(k<S.length-1){i=k+1;scene(i)}else{playing=false;document.getElementById('pp').textContent='▶ Play';try{LB_confetti()}catch(e){}}};
   if(!mute){try{bridgeSpeak(c.say,{mode:'conversational',done:()=>{if(tok!==sceneTok)return;if(c.wd){setTimeout(()=>{if(tok!==sceneTok)return;try{bridgeSpeak(c.wd.replace(/<[^>]*>/g,''),{mode:'pronunciation',done:()=>{if(tok!==sceneTok)return;setTimeout(next,700)}})}catch(e){next()}},350)}else{setTimeout(next,Math.max(400,2200-(Date.now()-t0)))}}})}catch(e){}}
   tmr=setTimeout(next,mute?dur(c)+(c.wd?1800:0):dur(c)+9000)}
