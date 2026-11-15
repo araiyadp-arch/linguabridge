@@ -196,7 +196,7 @@ if(VIDEO_URL){vid.innerHTML='<video controls playsinline src="'+VIDEO_URL+'"></v
 else{
  let i=0,tmr=null,playing=false,mute=false;
  /* slower pacing (2026-11-09): at least 1.7x the authored time, and enough time to hear the whole line */
- const dur=c=>Math.max(c.d*1.5,3800+String(c.say||'').split(' ').length*520);
+ const dur=c=>Math.max(c.d*1.3,2800+String(c.say||'').split(' ').length*450);
  const total=S.reduce((a,x)=>a+dur(x),0);
  let sceneTok=0;
  function scene(k){const c=S[k];vid.className='vid bg'+(k%4);
@@ -207,7 +207,7 @@ else{
      so there are no long silent pauses. A safety timer still advances if the voice never reports back. */
   const tok=++sceneTok,t0=Date.now();if(c.wd){try{LB_confetti(700)}catch(e){}}
   const next=()=>{if(tok!==sceneTok||!playing)return;sceneTok++;clearTimeout(tmr);if(k<S.length-1){i=k+1;scene(i)}else{playing=false;document.getElementById('pp').textContent='▶ Play';try{LB_confetti()}catch(e){}}};
-  if(!mute){try{bridgeSpeak(c.say,{mode:'conversational',done:()=>{if(tok!==sceneTok)return;setTimeout(next,Math.max(1800,4600-(Date.now()-t0)))}})}catch(e){}}
+  if(!mute){try{bridgeSpeak(c.say,{mode:'conversational',done:()=>{if(tok!==sceneTok)return;setTimeout(next,Math.max(400,2200-(Date.now()-t0)))}})}catch(e){}}
   tmr=setTimeout(next,mute?dur(c):dur(c)+6000)}
  function play(){playing=true;document.getElementById('pp').textContent='⏸ Pause';scene(i)}
  function pause(){playing=false;sceneTok++;clearTimeout(tmr);stopAudio();document.getElementById('pp').textContent='▶ Play'}
