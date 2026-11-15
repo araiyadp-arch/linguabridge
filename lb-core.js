@@ -142,13 +142,18 @@ const LB_VOICE_LIFT={boy:1,girl:1};
 /* Voice check (2026-11-15): open any page with ?vc=1 once to show a small label saying which voice REALLY played. ?vc=0 hides it. */
 try{const q=new URLSearchParams(location.search).get('vc');if(q==='1')localStorage.setItem('lb_vc','1');if(q==='0')localStorage.removeItem('lb_vc')}catch(e){}
 function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 13px system-ui;color:#fff;max-width:80vw';(document.body||document.documentElement).appendChild(d)}d.style.background=bad?'#c0392b':'#12864A';d.textContent=msg}catch(e){}}
+/* Clearer speech (2026-11-15): the voice sometimes ran words together or skipped one. Always end with a full stop; in practice (pronunciation)
+   mode put a short pause between words so every word is heard. */
+function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
+ if(mode==='pronunciation'){const w=x.replace(/[.!?,]+$/,'').split(' ').filter(Boolean);if(w.length>1&&w.length<=8)x=w.join(', ');else x=w.join(' ')}
+ return /[.!?]$/.test(x)?x:x+'.'}
 let _tok=0,_cloudOff=0;
 function cloudSay(t,mode,done,fb,again){const my=again||++_tok;
  if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||/[\u{1F300}-\u{1FAFF}]/u.test(t)){fb();return}
- const url='https://api.lingua-bridge.us/api/tts?voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&speaker='+(LB_voiceId()==='girl'?'asteria':'zeus')+'&text='+encodeURIComponent(t.slice(0,220));
+ const url='https://api.lingua-bridge.us/api/tts?voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&speaker='+(LB_voiceId()==='girl'?'asteria':'zeus')+'&text='+encodeURIComponent(LB_ttsText(t,mode).slice(0,220));
  fetch(url,{credentials:'include'}).then(r=>{if(!r.ok){window.LB_lastVoiceError=r.status;LB_vc('Cloud voice FAILED (error '+r.status+') - using backup voice',true);throw new Error(r.status)}return r.blob()}).then(b=>{
   if(my!==_tok)return;LB_vc('Playing: '+(LB_voiceId()==='girl'?'Asteria':'Zeus')+' (cloud voice)');const a=new Audio(URL.createObjectURL(b));_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
-  a.playbackRate=(mode==='pronunciation'?0.92:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
+  a.playbackRate=(mode==='pronunciation'?0.9:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
   let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&!again){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my)},700)}else fb()};
   a.onended=()=>{if(done)done()};a.onerror=f;const r=a.play();if(r&&r.catch)r.catch(f)
  }).catch(()=>{if(my!==_tok)return;if(!window.LB_lastVoiceError)LB_vc('Cloud voice FAILED (no connection) - using backup voice',true);if(window.LB_STRICT_VOICE){if(!again){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my)},700)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
