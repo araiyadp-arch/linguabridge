@@ -140,17 +140,17 @@ function LB_clip(t,mode){if(LB_voiceId()!=='girl')return null;const s=slugOf(t);
 /* Younger, livelier sound (2026-11-15): a small pitch+speed lift makes the cloud voices sound more like a teenager. 1 = no change. */
 const LB_VOICE_LIFT={boy:1,girl:1};
 let _tok=0,_cloudOff=0;
-function cloudSay(t,mode,done,fb){const my=++_tok;
- if(Date.now()<_cloudOff||/[\u{1F300}-\u{1FAFF}]/u.test(t)){fb();return}
+function cloudSay(t,mode,done,fb,again){const my=again||++_tok;
+ if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||/[\u{1F300}-\u{1FAFF}]/u.test(t)){fb();return}
  const url='https://api.lingua-bridge.us/api/tts?voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&speaker='+(LB_voiceId()==='girl'?'asteria':'zeus')+'&text='+encodeURIComponent(t.slice(0,220));
  fetch(url,{credentials:'include'}).then(r=>{if(!r.ok){window.LB_lastVoiceError=r.status;throw new Error(r.status)}return r.blob()}).then(b=>{
   if(my!==_tok)return;const a=new Audio(URL.createObjectURL(b));_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
   a.playbackRate=(mode==='pronunciation'?0.92:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
-  let bad=false;const f=()=>{if(bad)return;bad=true;if(my===_tok)fb()};
+  let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&!again){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my)},700)}else fb()};
   a.onended=()=>{if(done)done()};a.onerror=f;const r=a.play();if(r&&r.catch)r.catch(f)
- }).catch(()=>{if(my!==_tok)return;_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
+ }).catch(()=>{if(my!==_tok)return;if(window.LB_STRICT_VOICE){if(!again){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my)},700)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
 function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational';stopAudio();
- const old=()=>{const b64=LB_clip(t,mode);if(b64){playClip(b64,t,mode,opts.done);return}
+ const old=()=>{if(window.LB_STRICT_VOICE){setTimeout(()=>{if(opts.done)opts.done()},1500);return}const b64=LB_clip(t,mode);if(b64){playClip(b64,t,mode,opts.done);return}
   try{const u=utter(t,mode,LB_voiceId());if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}};
  cloudSay(t,mode,opts.done,old)}
 function bridgeSpeakSeq(arr,mode){stopAudio();let i=0;const next=()=>{if(i>=arr.length)return;const t=arr[i++];const m=mode||'conversational';
