@@ -12,7 +12,7 @@
 .fun-float{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .fun-float i{position:absolute;font-style:normal;font-family:var(--font-head);font-weight:700;color:#fff;display:grid;place-items:center;border-radius:50%;animation:funFloat 7s ease-in-out infinite}
 .f1,.f2,.f3{width:64px;height:64px;font-size:2rem}
-.f1{background:var(--grape);left:2%;bottom:7%}.f2{background:var(--sun);color:var(--navy)!important;left:46%;top:8%;animation-delay:-2s!important}.f3{background:#12A15A;right:5%;bottom:14%;animation-delay:-4s!important}
+.f1{background:var(--grape);left:auto;right:44%;bottom:5%}.f2{background:var(--sun);color:var(--navy)!important;left:46%;top:8%;animation-delay:-2s!important}.f3{background:#12A15A;right:5%;bottom:14%;animation-delay:-4s!important}
 .f4,.f5,.f6,.f7{width:26px;height:26px;opacity:.85}
 .f4{background:var(--coral);left:38%;bottom:12%;animation-delay:-1s!important}.f5{background:var(--sky);left:24%;bottom:22%;animation-delay:-3s!important}.f6{background:var(--sun);right:30%;top:14%;animation-delay:-5s!important}.f7{background:var(--grape);right:12%;top:46%;animation-delay:-2.5s!important}
 @keyframes funFloat{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-18px) rotate(8deg)}}
