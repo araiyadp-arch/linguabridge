@@ -203,7 +203,7 @@ function LB_fanfare(kind){try{
  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;_fac=_fac||new AC();
  if(_fac.state!=='running'){_facWant=kind;const r=_fac.resume();if(r&&r.then)r.then(()=>{if(_fac.state==='running'&&_facWant){const k=_facWant;_facWant=null;LB_fanfare(k)}}).catch(()=>{});return}
  _facWant=null;
- const big=kind==='big',root=262,t=_fac.currentTime+.05,m=_fac.createGain();m.gain.value=.2;m.connect(_fac.destination);
+ const big=kind==='big',root=262,t=_fac.currentTime+.05,m=_fac.createGain();m.gain.value=.35;m.connect(_fac.destination);
  const note=(semi,st,len,type,vol)=>{const o=_fac.createOscillator(),g=_fac.createGain();o.type=type||'triangle';o.frequency.value=root*Math.pow(2,semi/12);
   g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(vol||.5,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+len);o.connect(g);g.connect(m);o.start(st);o.stop(st+len+.05)};
  const run=big?[0,4,7,12,7,12,16,19]:[0,4,7,12];const step=big?.13:.12;
