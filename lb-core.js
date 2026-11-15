@@ -295,12 +295,14 @@ function LB_gmWin(sh,text,onDone){
    The normal icon shows first and is swapped for the photo once it loads. If photos are unavailable the icon stays. */
 let _phOff=0;
 function LB_photoURL(w,h){return 'https://api.lingua-bridge.us/api/photo?w='+encodeURIComponent(String(w||'').replace(/<[^>]*>/g,'').slice(0,60))+'&h='+encodeURIComponent(String(h||'').replace(/<[^>]*>/g,'').slice(0,140))}
-function LB_photoInto(el,w,h,cls){if(!el||!w||Date.now()<_phOff)return;
+/* AI photos are OFF (2026-11-15): they used up Cloudflare's free daily limit and made the voices fail. Set true only if the Worker is on a paid plan. */
+const LB_PHOTOS_ON=false;
+function LB_photoInto(el,w,h,cls){if(!LB_PHOTOS_ON||!el||!w||Date.now()<_phOff)return;
  const img=new Image();img.alt=String(w).replace(/<[^>]*>/g,'');img.decoding='async';img.className=cls||'lbphoto';
  img.onload=()=>{el.textContent='';el.appendChild(img);el.classList.add('has-photo')};
  img.onerror=()=>{_phOff=Date.now()+120000};
  img.src=LB_photoURL(w,h)}
-function LB_photoWarm(list){try{list.forEach(x=>{if(x&&x[0]){const i=new Image();i.src=LB_photoURL(x[0],x[1])}})}catch(e){}}
+function LB_photoWarm(list){if(!LB_PHOTOS_ON)return;try{list.forEach(x=>{if(x&&x[0]){const i=new Image();i.src=LB_photoURL(x[0],x[1])}})}catch(e){}}
 window.LB_photoInto=LB_photoInto;window.LB_photoWarm=LB_photoWarm;
 function LB_mountMatchGame(el,items,onDone){
  const sh=LB_gmShell(el);const order=LB_shuffle(items.map((x,i)=>i));let step=0;
