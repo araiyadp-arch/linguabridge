@@ -137,13 +137,15 @@ function LB_clip(t,mode){if(LB_voiceId()!=='girl')return null;const s=slugOf(t);
  return (mode==='pronunciation'&&AUDIO.pron.bella&&AUDIO.pron.bella[s])||(AUDIO.data.bella&&AUDIO.data.bella[s])||null}
 /* Cloud voices (2026-11-10): friendly Boy/Girl voices from the Worker (/api/tts, Cloudflare Workers AI).
    Signed-in only; if it is unavailable the old Bella clip / device voice plays instead (cloudOff pauses retries for 3 min). */
+/* Younger, livelier sound (2026-11-15): a small pitch+speed lift makes the cloud voices sound more like a teenager. 1 = no change. */
+const LB_VOICE_LIFT={boy:1.12,girl:1.07};
 let _tok=0,_cloudOff=0;
 function cloudSay(t,mode,done,fb){const my=++_tok;
  if(Date.now()<_cloudOff||/[\u{1F300}-\u{1FAFF}]/u.test(t)){fb();return}
  const url='https://api.lingua-bridge.us/api/tts?voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&text='+encodeURIComponent(t.slice(0,220));
  fetch(url,{credentials:'include'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.blob()}).then(b=>{
   if(my!==_tok)return;const a=new Audio(URL.createObjectURL(b));_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
-  a.playbackRate=(mode==='pronunciation'?0.9:1)*LB_speed();try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
+  a.playbackRate=(mode==='pronunciation'?0.92:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);try{a.preservesPitch=false;a.mozPreservesPitch=false;a.webkitPreservesPitch=false}catch(e){}
   let bad=false;const f=()=>{if(bad)return;bad=true;if(my===_tok)fb()};
   a.onended=()=>{if(done)done()};a.onerror=f;const r=a.play();if(r&&r.catch)r.catch(f)
  }).catch(()=>{if(my!==_tok)return;_cloudOff=Date.now()+180000;fb()})}
