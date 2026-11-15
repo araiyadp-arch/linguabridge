@@ -207,8 +207,8 @@ else{
      so there are no long silent pauses. A safety timer still advances if the voice never reports back. */
   const tok=++sceneTok,t0=Date.now();if(c.wd){try{LB_confetti(700)}catch(e){}}
   const next=()=>{if(tok!==sceneTok||!playing)return;sceneTok++;clearTimeout(tmr);if(k<S.length-1){i=k+1;scene(i)}else{playing=false;document.getElementById('pp').textContent='▶ Play';try{LB_confetti()}catch(e){}}};
-  if(!mute){try{bridgeSpeak(c.say,{mode:'conversational',done:()=>{if(tok!==sceneTok)return;setTimeout(next,Math.max(400,2200-(Date.now()-t0)))}})}catch(e){}}
-  tmr=setTimeout(next,mute?dur(c):dur(c)+6000)}
+  if(!mute){try{bridgeSpeak(c.say,{mode:'conversational',done:()=>{if(tok!==sceneTok)return;if(c.wd){setTimeout(()=>{if(tok!==sceneTok)return;try{bridgeSpeak(c.wd.replace(/<[^>]*>/g,''),{mode:'pronunciation',done:()=>{if(tok!==sceneTok)return;setTimeout(next,700)}})}catch(e){next()}},350)}else{setTimeout(next,Math.max(400,2200-(Date.now()-t0)))}}})}catch(e){}}
+  tmr=setTimeout(next,mute?dur(c)+(c.wd?1800:0):dur(c)+9000)}
  function play(){playing=true;document.getElementById('pp').textContent='⏸ Pause';scene(i)}
  function pause(){playing=false;sceneTok++;clearTimeout(tmr);stopAudio();document.getElementById('pp').textContent='▶ Play'}
  vid.innerHTML='<button class="start" id="go" aria-label="Play video"><span>▶ Play video</span></button>';
