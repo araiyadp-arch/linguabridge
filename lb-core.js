@@ -138,7 +138,7 @@ function LB_clip(t,mode){if(LB_voiceId()!=='girl')return null;const s=slugOf(t);
 /* Cloud voices (2026-11-10): friendly Boy/Girl voices from the Worker (/api/tts, Cloudflare Workers AI).
    Signed-in only; if it is unavailable the old Bella clip / device voice plays instead (cloudOff pauses retries for 3 min). */
 /* Younger, livelier sound (2026-11-15): a small pitch+speed lift makes the cloud voices sound more like a teenager. 1 = no change. */
-const LB_VOICE_LIFT={boy:1,girl:1};
+const LB_VOICE_LIFT={boy:0.9,girl:0.9}; /* 2026-11-15: Normal speed made ~10% slower at the founder's request */
 /* Voice check (2026-11-15): open any page with ?vc=1 once to show a small label saying which voice REALLY played. ?vc=0 hides it. */
 try{const q=new URLSearchParams(location.search).get('vc');if(q==='1')localStorage.setItem('lb_vc','1');if(q==='0')localStorage.removeItem('lb_vc')}catch(e){}
 function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 13px system-ui;color:#fff;max-width:80vw';(document.body||document.documentElement).appendChild(d)}d.style.background=bad?'#c0392b':'#12864A';d.textContent=msg}catch(e){}}
