@@ -192,8 +192,17 @@ function LB_shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.fl
 /* Finish-line music (2026-11-15): a short fanfare made with the Web Audio API (no audio files), played with the confetti.
    'small' = quick win jingle (game finished), 'big' = full celebration (lesson badge). */
 let _fac=null;
+/* Browsers keep sound locked until the person taps something on THIS page. Unlock it on the first tap/key, and if the
+   fanfare is asked for while still locked (new page after a lesson), play it as soon as it unlocks. */
+let _facWant=null;
+function _facUnlock(){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;_fac=_fac||new AC();
+ const go=()=>{if(_fac.state==='running'&&_facWant){const k=_facWant;_facWant=null;LB_fanfare(k)}};
+ if(_fac.state!=='running'){const r=_fac.resume();if(r&&r.then)r.then(go).catch(()=>{})}else go()}catch(e){}}
+['pointerdown','touchstart','keydown','click'].forEach(ev=>document.addEventListener(ev,_facUnlock,{passive:true}));
 function LB_fanfare(kind){try{
- const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;_fac=_fac||new AC();if(_fac.state==='suspended')_fac.resume();
+ const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;_fac=_fac||new AC();
+ if(_fac.state!=='running'){_facWant=kind;const r=_fac.resume();if(r&&r.then)r.then(()=>{if(_fac.state==='running'&&_facWant){const k=_facWant;_facWant=null;LB_fanfare(k)}}).catch(()=>{});return}
+ _facWant=null;
  const big=kind==='big',root=262,t=_fac.currentTime+.05,m=_fac.createGain();m.gain.value=.2;m.connect(_fac.destination);
  const note=(semi,st,len,type,vol)=>{const o=_fac.createOscillator(),g=_fac.createGain();o.type=type||'triangle';o.frequency.value=root*Math.pow(2,semi/12);
   g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(vol||.5,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+len);o.connect(g);g.connect(m);o.start(st);o.stop(st+len+.05)};
