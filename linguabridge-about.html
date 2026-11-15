@@ -445,9 +445,10 @@
   }
 </style>
 
+<link rel="stylesheet" href="lb-fun.css">
 <style id="lb-logo">.logo-mark{height:68px!important;width:auto!important;border-radius:14px;box-shadow:0 1px 6px rgba(11,59,107,.18);background:#fff}@media(max-width:560px){.logo-mark{height:56px!important}}</style>
 </head>
-<body>
+<body class="fun-page">
 
 <!-- ============================================================
      NAVIGATION
@@ -485,6 +486,7 @@
      ABOUT LINGUABRIDGE
      ============================================================ -->
 <header class="hero about-hero">
+  <div class="fun-float top" aria-hidden="true"><i class="f1">A</i><i class="f2">B</i><i class="f3">C</i><i class="f4"></i><i class="f6"></i><i class="f7"></i></div>
   <div class="hero-inner">
     <div class="hero-text">
       <p class="eyebrow">Get to know us</p>
@@ -495,7 +497,7 @@
     <div class="hero-art">
       <!-- PLACEHOLDER BRIDGE MASCOT — same approved placeholder used on the homepage.
            Replace with the approved Bridge asset once supplied. -->
-      <svg class="bridge-scene" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <svg class="bridge-scene" id="bridgeMascot" role="button" tabindex="0" aria-label="Tap Bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <ellipse cx="210" cy="262" rx="170" ry="26" fill="#159FE8" opacity="0.12"/>
         <rect x="4" y="248" width="66" height="18" rx="7" fill="#0B3B6B"/>
         <rect x="350" y="248" width="66" height="18" rx="7" fill="#0B3B6B"/>
@@ -516,32 +518,29 @@
           <circle cx="338" cy="126" r="14" fill="#ffffff" stroke="#159FE8" stroke-width="4"/>
         </g>
       </svg>
-      <div class="speech-bubble">Hi! I'm Bridge! 👋</div>
+      <div class="speech-bubble" id="bridgeBubble">Hi! I'm Bridge! Tap me!</div>
     </div>
   </div>
 </header>
 
-<!-- ============================================================
-     OUR MISSION
-     ============================================================ -->
-<section class="why mission">
-  <div class="why-inner">
-    <p class="section-label">What drives us</p>
-    <h2>Our Mission</h2>
-    <blockquote class="centered-quote">To empower every child with free English education, building confidence, communication, and opportunity.</blockquote>
+<div class="mv-grid">
+  <section class="mv m"><span class="fc-ico" style="background:rgba(255,255,255,.22)"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 41S7 31 7 19a9 9 0 0117-4 9 9 0 0117 4c0 12-17 22-17 22z"/></svg></span><p class="k">What drives us</p><h2>Our Mission</h2><blockquote>To empower every child with free English education, building confidence, communication, and opportunity.</blockquote></section>
+  <section class="mv v"><span class="fc-ico" style="background:rgba(255,255,255,.22)"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 24s8-14 20-14 20 14 20 14-8 14-20 14S4 24 4 24z"/><circle cx="24" cy="24" r="6"/></svg></span><p class="k">Looking ahead</p><h2>Our Vision</h2><blockquote>With English being the most spoken language in the world, I envision a future where every child has the opportunity to explore the world through English, communicate with confidence, and unlock opportunities that help them reach their full potential.</blockquote></section>
+</div>
+
+<section class="fun-diff">
+  <p class="fun-kicker">What makes us different</p>
+  <h2>Made for kids, with care</h2>
+  <div class="fc-grid" style="max-width:1080px;margin:0 auto">
+    <div class="fc"><span class="fc-ico" style="background:#12A15A"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 6v36M32 14c-2-3-5-4-8-4-5 0-8 3-8 6s3 5 8 6 8 3 8 6-3 6-8 6c-3 0-6-1-8-4"/></svg></span><h3>Always free</h3><p>No fees, ever. Every child can learn.</p></div>
+    <div class="fc"><span class="fc-ico" style="background:#FF8A3D"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="24" cy="24" r="16"/><path d="M12 36L36 12"/></svg></span><h3>No ads</h3><p>Nothing to click that is not a lesson.</p></div>
+    <div class="fc"><span class="fc-ico" style="background:#159FE8"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 5l16 6v12c0 10-7 17-16 20C15 40 8 33 8 23V11z"/><path d="M17 24l5 5 9-10"/></svg></span><h3>Safe by design</h3><p>Invite-only accounts, approved by the founder. Bridge only talks about English.</p></div>
+    <div class="fc"><span class="fc-ico" style="background:#8B6BFF"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 6l5 12 13 1-10 8 3 13-11-7-11 7 3-13-10-8 13-1z"/></svg></span><h3>Made by a student</h3><p>Built one lesson at a time by a student who cares.</p></div>
   </div>
+  <div class="fun-founder"><img src="founder.jpg" alt="Araiya Patel, founder of LinguaBridge"><div><h3>Hi, I'm Araiya!</h3><p>I built LinguaBridge because no child should have to pay to learn how to say hello.</p><a class="fun-btn fun-alt" style="padding:10px 22px;font-size:1rem" href="index.html#founder">Read my note</a></div></div>
 </section>
 
-<!-- ============================================================
-     OUR VISION
-     ============================================================ -->
-<section class="why vision">
-  <div class="why-inner">
-    <p class="section-label">Looking ahead</p>
-    <h2>Our Vision</h2>
-    <blockquote class="centered-quote">With English being the most spoken language in the world, I envision a future where every child has the opportunity to explore the world through English, communicate with confidence, and unlock opportunities that help them reach their full potential.</blockquote>
-  </div>
-</section>
+<section class="fun-end"><h2>Ready to say hello?</h2><a href="linguabridge-try.html" class="fun-btn fun-go">Try a free lesson</a></section>
 
 <!-- ============================================================
      FOOTER
@@ -576,5 +575,6 @@
 
 
 <script src="lb-icons.js"></script>
+<script src="lb-fun.js"></script>
 </body>
 </html>
