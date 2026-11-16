@@ -138,7 +138,7 @@ function LB_clip(t,mode){if(LB_voiceId()!=='girl')return null;const s=slugOf(t);
 /* Cloud voices (2026-11-10): friendly Boy/Girl voices from the Worker (/api/tts, Cloudflare Workers AI).
    Signed-in only; if it is unavailable the old Bella clip / device voice plays instead (cloudOff pauses retries for 3 min). */
 /* Younger, livelier sound (2026-11-15): a small pitch+speed lift makes the cloud voices sound more like a teenager. 1 = no change. */
-const LB_VOICE_LIFT={boy:0.97,girl:0.9}; /* 2026-11-15: Normal speed made ~10% slower at the founder's request */
+const LB_VOICE_LIFT={boy:1,girl:1}; /* 2026-11-15: Normal speed made ~10% slower at the founder's request */
 /* Voice check (2026-11-15): open any page with ?vc=1 once to show a small label saying which voice REALLY played. ?vc=0 hides it. */
 try{const q=new URLSearchParams(location.search).get('vc');if(q==='1')localStorage.setItem('lb_vc','1');if(q==='0')localStorage.removeItem('lb_vc')}catch(e){}
 function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 13px system-ui;color:#fff;max-width:80vw';(document.body||document.documentElement).appendChild(d)}d.style.background=bad?'#c0392b':'#12864A';d.textContent=msg}catch(e){}}
@@ -150,9 +150,9 @@ function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/\s+/
 let _tok=0,_cloudOff=0;
 function cloudSay(t,mode,done,fb,again){const my=again||++_tok;
  if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||/[\u{1F300}-\u{1FAFF}]/u.test(t)){fb();return}
- const url='https://api.lingua-bridge.us/api/tts?voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&speaker='+(LB_voiceId()==='girl'?'asteria':'orion')+'&text='+encodeURIComponent(LB_ttsText(t,mode).slice(0,220));
+ const url='https://api.lingua-bridge.us/api/tts?engine=aura2&voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&speaker='+LB_voice4()+'&text='+encodeURIComponent(LB_ttsText(t,mode).slice(0,220));
  fetch(url,{credentials:'include'}).then(r=>{if(!r.ok){window.LB_lastVoiceError=r.status;LB_vc('Cloud voice FAILED (error '+r.status+') - using backup voice',true);throw new Error(r.status)}return r.blob()}).then(b=>{
-  if(my!==_tok)return;LB_vc('Playing: '+(LB_voiceId()==='girl'?'Asteria':'Orion')+' (cloud voice)');const a=new Audio(URL.createObjectURL(b));_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
+  if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');const a=new Audio(URL.createObjectURL(b));_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
   a.playbackRate=(mode==='pronunciation'?0.9:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
   let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&!again){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my)},700)}else fb()};
   a.onended=()=>{if(done)done()};a.onerror=f;const r=a.play();if(r&&r.catch)r.catch(f)
@@ -628,7 +628,10 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
 
 
 /* ---- Voice speed control (2026-11-09): kids pick Slow / Normal / Fast; applies to every spoken voice. ---- */
-function LB_voiceId(){try{return localStorage.getItem('lb_voice_gender')==='girl'?'girl':'daniel'}catch(e){return'daniel'}}
+/* FOUNDER-LOCKED VOICES (2026-11-15): Apollo, Hermes, Amalthea and Callista (Deepgram Aura-2). The founder loves these four and said they must NEVER be changed. Kids pick one. */
+const LB_VOICES4=[['apollo','Apollo','boy'],['hermes','Hermes','boy'],['amalthea','Amalthea','girl'],['callista','Callista','girl']];
+function LB_voice4(){try{const v=localStorage.getItem('lb_voice4');if(LB_VOICES4.some(x=>x[0]===v))return v;return localStorage.getItem('lb_voice_gender')==='girl'?'amalthea':'apollo'}catch(e){return'apollo'}}
+function LB_voiceId(){try{const v=localStorage.getItem('lb_voice4'),h=LB_VOICES4.find(x=>x[0]===v);if(h)return h[2]==='girl'?'girl':'daniel';return localStorage.getItem('lb_voice_gender')==='girl'?'girl':'daniel'}catch(e){return'daniel'}}
 function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));return v>=.5&&v<=1.5?v:1}catch(e){return 1}}
 (function(){
  const OPTS=[['Slow',.7],['Normal',1],['Fast',1.25]];
@@ -640,15 +643,15 @@ function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));ret
   w.innerHTML='<span style="margin:0 4px 0 2px">Voice speed</span>';
   const VR=document.createElement('div');VR.style.cssText='display:flex;align-items:center;gap:4px;width:100%;margin-bottom:4px';
   VR.innerHTML='<span style="margin:0 4px 0 2px">Voice</span>';
-  [['Boy','daniel'],['Girl','girl']].forEach(([n,id])=>{const b=document.createElement('button');b.type='button';b.textContent=n;b.dataset.g=id;
-   b.style.cssText='border:0;border-radius:999px;padding:6px 14px;font:inherit;cursor:pointer;background:#EAF6FF;color:#0B3B6B';
-   b.onclick=()=>{try{localStorage.setItem('lb_voice_gender',id==='girl'?'girl':'boy')}catch(e){}paint();try{bridgeSpeak('Hi! This is my voice.',{mode:'conversational'})}catch(e){}};VR.appendChild(b)});
+  LB_VOICES4.forEach(([id,n])=>{const b=document.createElement('button');b.type='button';b.textContent=n;b.dataset.g=id;
+   b.style.cssText='border:0;border-radius:999px;padding:6px 11px;font:inherit;cursor:pointer;background:#EAF6FF;color:#0B3B6B';
+   b.onclick=()=>{try{const h=LB_VOICES4.find(x=>x[0]===id);localStorage.setItem('lb_voice4',id);localStorage.setItem('lb_voice_gender',h&&h[2]==='girl'?'girl':'boy')}catch(e){}paint();try{bridgeSpeak('Hi! This is my voice.',{mode:'conversational'})}catch(e){}};VR.appendChild(b)});
   w.style.flexWrap='wrap';w.insertBefore(VR,w.firstChild);
   OPTS.forEach(([n,v])=>{const b=document.createElement('button');b.type='button';b.textContent=n;b.dataset.v=v;
    b.style.cssText='border:0;border-radius:999px;padding:6px 11px;font:inherit;cursor:pointer;background:#EAF6FF;color:#0B3B6B';
    b.onclick=()=>{try{localStorage.setItem('lb_speed',String(v))}catch(e){}paint();try{bridgeSpeak('This is how fast I talk.',{mode:'conversational'})}catch(e){}};
    w.appendChild(b)});
-  function paint(){const gid=LB_voiceId();[...w.querySelectorAll('button[data-g]')].forEach(b=>{const on=b.dataset.g===gid;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});const cur=LB_speed();[...w.querySelectorAll('button[data-v]')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});return;[...w.querySelectorAll('button')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'})}
+  function paint(){const gid=LB_voice4();[...w.querySelectorAll('button[data-g]')].forEach(b=>{const on=b.dataset.g===gid;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});const cur=LB_speed();[...w.querySelectorAll('button[data-v]')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'});return;[...w.querySelectorAll('button')].forEach(b=>{const on=Math.abs(parseFloat(b.dataset.v)-cur)<.01;b.style.background=on?'#159FE8':'#EAF6FF';b.style.color=on?'#fff':'#0B3B6B'})}
   paint();
   /* collapsed by default so it never covers lesson content; tap "Voice" to open */
   const inner=document.createElement('div');inner.style.cssText='display:none;flex-wrap:wrap;align-items:center;gap:4px;width:100%';
