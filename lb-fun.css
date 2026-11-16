@@ -170,3 +170,7 @@ a.fun-btn:focus-visible,.nav a:focus-visible{outline:4px solid #8B6BFF}
 @media(prefers-reduced-motion:reduce){.hero::before,.hero::after,#bridgeMascot,.fc-ico,.logo-mark{animation:none!important}}
 @media(max-width:600px){.hero h1{font-size:2.5rem!important}.hero::after{display:none}.hero-sub{font-size:1.4rem!important}}
 .fun-page .eyebrow,.eyebrow{color:#fff!important}
+#askBridgeBtn{background:linear-gradient(135deg,#FF5FA2,#8B6BFF)!important;box-shadow:0 6px 0 #5A3FD0!important}
+#askBridgeHead{background:linear-gradient(135deg,#FF5FA2,#8B6BFF)!important}
+#askBridgeLog .ab-q{background:#8B6BFF!important}
+.gm-bridge{background:linear-gradient(135deg,#FF5FA2,#FF8A3D)!important}

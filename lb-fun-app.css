@@ -139,3 +139,8 @@ input[type=text],input[type=password],input[type=email],input:not([type]),select
 #bname{font-size:1.9rem!important;color:#0B3B6B}
 #bsub{display:inline-block;background:#FFD21F;color:#0B3B6B!important;font-weight:700;padding:6px 18px;border-radius:999px;box-shadow:0 4px 0 #D99A00;font-size:1rem!important}
 @media(max-width:420px){.badge-stage{width:230px;height:230px}}
+/* Bridge's button and avatar match his new colors */
+#askBridgeBtn{background:linear-gradient(135deg,#FF5FA2,#8B6BFF)!important;box-shadow:0 6px 0 #5A3FD0!important}
+#askBridgeHead{background:linear-gradient(135deg,#FF5FA2,#8B6BFF)!important}
+#askBridgeLog .ab-q{background:#8B6BFF!important}
+.gm-bridge{background:linear-gradient(135deg,#FF5FA2,#FF8A3D)!important;box-shadow:0 3px 0 #D23A80}
