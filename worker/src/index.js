@@ -1048,8 +1048,12 @@ async function handleAskBridge(request, env) {
   }
   // Greetings and thanks are answered without the AI, so they always work (even if the daily AI limit is used up).
   const gq = question.toLowerCase().replace(/[^a-z ]/g, "").replace(/(.)\1{2,}/g, "$1$1").trim();
-  if (/^(hi+|hello+|hey+|hiya|yo|good (morning|afternoon|evening)|howdy)( bridge+e*)?( there)?$/.test(gq.replace(/ee+$/, "e").replace(/(bridg)e+/, "$1e"))) {
-    return jsonResponse({ answer: "Hi! I am Bridge. Ask me about an English word, or how to say a word from your language in English!" }, 200, request);
+  const gw = gq.split(/\s+/).filter(Boolean);
+  // "hi", "hello", "hey bridge", and misspellings like "hi beidge": short and starting with a greeting word
+  if (gw.length >= 1 && gw.length <= 3 && /^(h+i+|h+e+l+o+|hel+o|hey+|hiya|hallo|hola|yo|howdy|good)$/.test(gw[0]) && (gw.length === 1 || gw[0] === "good" ? true : gw.slice(1).every((x) => x.length <= 9))) {
+    if (gw[0] !== "good" || /^good (morning|afternoon|evening)/.test(gq)) {
+      return jsonResponse({ answer: "Hi! I am Bridge. Ask me about an English word, or how to say a word from your language in English!" }, 200, request);
+    }
   }
   if (/^(thanks?|thank you|thx|ty)( bridge+e*)?( so much)?$/.test(gq)) {
     return jsonResponse({ answer: "You are welcome! Keep learning, you are doing great!" }, 200, request);
@@ -1060,6 +1064,9 @@ async function handleAskBridge(request, env) {
     // produce a confident, wrong answer.
     answer = answerTimeQuestion(question);
   } else {
+    if ((await aiUsedToday(env)) >= AI_CHAT_CAP) {
+      return jsonResponse({ error: "Bridge is resting for today. Please try again tomorrow!" }, 503, request);
+    }
     try {
       const userPrompt = lessonTopic
         ? `(Student is on the "${lessonTopic}" lesson, level: ${level || "unknown"}.) Student's question: ${question}`
@@ -1084,6 +1091,7 @@ async function handleAskBridge(request, env) {
         (aiResult && aiResult.choices && aiResult.choices[0] && aiResult.choices[0].message && aiResult.choices[0].message.content) ||
         "";
       answer = bridgeClean(rawAnswer);
+      aiSpend(env, NEURONS_PER_CHAT);
     } catch (e) {
       // Log the real error so it shows up in the Cloudflare dashboard's
       // Observability/Logs view (Message column) instead of being invisible —
@@ -1170,6 +1178,21 @@ async function handleSaveProgress(request, env) {
 }
 
 
+// ---- Daily AI budget guard (2026-11-15) ----
+// Cloudflare's free plan allows 10,000 "neurons" a day for ALL AI together. This counts what we spend (an estimate) so that
+// voices can never use up the whole day and leave Ask Bridge dead: new voice lines stop at VOICE_CAP, chat stops at CHAT_CAP.
+// If the founder ever moves to Workers Paid, raise both numbers (for example 150000 and 200000 = about $1.50 and $2 a day maximum).
+const AI_VOICE_CAP = 6000;
+const AI_CHAT_CAP = 9500;
+const NEURONS_PER_CHAT = 30;
+function budgetDay() { return new Date().toISOString().slice(0, 10); }
+async function aiUsedToday(env) {
+  try { const r = await env.DB.prepare("SELECT n FROM ai_budget WHERE day = ?").bind(budgetDay()).first(); return r ? r.n : 0; } catch (e) { return 0; }
+}
+async function aiSpend(env, n) {
+  try { await env.DB.prepare("INSERT INTO ai_budget (day, n) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET n = n + excluded.n").bind(budgetDay(), Math.ceil(n)).run(); } catch (e) {}
+}
+
 // ---- Text-to-speech (added 2026-11-10) ----
 // Friendly voices from Workers AI (Deepgram Aura). Signed-in users only. Audio is cached at
 // Cloudflare's edge so each line is only generated once. The site falls back to the device voice on any error.
@@ -1206,6 +1229,9 @@ async function handleTts(request, env, url, ctx) {
       }
     } catch (e) {}
   }
+  if (!audio && (await aiUsedToday(env)) >= AI_VOICE_CAP) {
+    return jsonResponse({ error: "Voice resting for today." }, 503, request);
+  }
   if (!audio) {
     try {
       let buf;
@@ -1222,6 +1248,7 @@ async function handleTts(request, env, url, ctx) {
         buf = await resp.arrayBuffer();
       }
       if (!buf.byteLength) throw new Error("empty");
+      ctx.waitUntil(aiSpend(env, text.length * (engine === "aura2" ? 2.9 : 1.5)));
       audio = new Response(buf, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
       ctx.waitUntil(cache.put(cacheKey, audio.clone()));
       if (buf.byteLength < 1500000) {
