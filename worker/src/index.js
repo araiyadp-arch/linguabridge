@@ -327,20 +327,15 @@ async function handleSignup(request, env) {
     return jsonResponse({ error: "Too many new accounts from this device today. Please try again tomorrow." }, 429, request);
   }
 
-  const first = (body.first_name || "").toString().trim().replace(/\s+/g, " ");
-  const last = (body.last_name || "").toString().trim().replace(/\s+/g, " ");
   const username = (body.username || "").toString().trim();
   const password = (body.password || "").toString();
   const contact = (body.contact || "").toString().trim();
 
-  if (!NAME_RE.test(first) || !NAME_RE.test(last)) {
-    return jsonResponse({ error: "Please enter your first and last name using letters only." }, 400, request);
-  }
   if (!CHILD_USERNAME_RE.test(username)) {
     return jsonResponse({ error: "Username must be 3-20 letters or numbers, no spaces or symbols." }, 400, request);
   }
-  if (dirtyText(first) || dirtyText(last) || dirtyText(username)) {
-    return jsonResponse({ error: "Please use kind, clean words only. Names and usernames cannot have bad words, hate, or anything unfair to any group of people. Please try again." }, 400, request);
+  if (dirtyText(username)) {
+    return jsonResponse({ error: "Please use kind, clean words only. Usernames cannot have bad words, hate, or anything unfair to any group of people. Please try again." }, 400, request);
   }
   const pwProblem = passwordProblem(password, username);
   if (pwProblem) {
@@ -378,7 +373,7 @@ async function handleSignup(request, env) {
       `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id, status, invite_code, first_name, last_name, phone)
        VALUES (?, ?, ?, ?, ?, 'student', ?, NULL, 'approved', NULL, ?, ?, ?)`
     )
-      .bind(id, username, hash, salt, iterations, email, first, last, phone)
+      .bind(id, username, hash, salt, iterations, email, null, null, phone)
       .run();
   } catch (e) {
     return jsonResponse({ error: "That username, email or phone number is already used. Try another." }, 409, request);

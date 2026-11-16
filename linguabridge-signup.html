@@ -431,7 +431,7 @@
     <div class="hero-text">
       <p class="eyebrow">Create your account</p>
       <h1>Sign Up for LinguaBridge</h1>
-      <p class="hero-copy"><span>Create your account with your name, a username and a password. Bridge is ready to greet your kids and make learning feel like an adventure, every step of the way.</span></p>
+      <p class="hero-copy"><span>Create your account with a username and a password. Bridge is ready to greet your kids and make learning feel like an adventure, every step of the way.</span></p>
       <p class="private-note">Takes about a minute • Free</p>
     </div>
 
@@ -478,7 +478,7 @@
   <div class="login-card">
     <span class="placeholder-badge">Sign up</span>
     <h2>Create Your Account</h2>
-    <p class="login-sub"><span>Tell us your name, pick a username and a password, and start learning right away. It is free.</span></p>
+    <p class="login-sub"><span>Pick a username and a password, and start learning right away. It is free.</span></p>
 
     <div id="signup-done" style="display:none; text-align:center; padding:8px 0 4px;">
       <h3 style="margin:0 0 10px; color:var(--navy);">Thank you! Your account is waiting for approval.</h3>
@@ -486,14 +486,6 @@
       <a class="btn btn-primary" href="linguabridge-login-2.html">Go to Log In</a>
     </div>
     <form id="signup-form">
-      <div class="form-field">
-        <label for="signup-first">First name</label>
-        <input type="text" id="signup-first" name="signup-first" autocomplete="given-name" maxlength="40" required>
-      </div>
-      <div class="form-field">
-        <label for="signup-last">Last name</label>
-        <input type="text" id="signup-last" name="signup-last" autocomplete="family-name" maxlength="40" required>
-      </div>
       <div class="form-field">
         <label for="signup-email">Username</label>
         <p class="field-helper">Pick a unique username: 3 to 20 letters or numbers, no spaces. Please use kind, clean words only: no bad words, no hate, nothing unfair to any group of people.</p>
@@ -598,7 +590,7 @@
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ first_name: document.getElementById('signup-first').value.trim(), last_name: document.getElementById('signup-last').value.trim(), username: email, contact: document.getElementById('signup-contact').value.trim(), password: password }),
+          body: JSON.stringify({ username: email, contact: document.getElementById('signup-contact').value.trim(), password: password }),
         });
 
         const data = await res.json().catch(function () { return {}; });
