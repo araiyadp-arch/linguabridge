@@ -201,6 +201,7 @@ function gate(st,i){return()=>{(got[st]=got[st]||new Set()).add(i);upd()}}
 // Communicator, and Leader have their own Chapter 1 sample in the exact same shape, so this one
 // render pipeline drives every level without needing a separate lesson system per level.
 const listenItems=C.listenItems;
+try{LB_ttsPrefetch([].concat((C.conversation||[]).map(x=>[x[1],'conversational']),(C.listenItems||[]).map(q=>[q.say,'conversational'])))}catch(e){}
 const readQ=C.readQ;
 const match=C.match;
 

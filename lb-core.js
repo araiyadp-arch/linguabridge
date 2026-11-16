@@ -172,11 +172,14 @@ function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
   let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&(tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb()};
   a.onended=()=>{if(done)done()};a.onerror=f;const r=a.play();if(r&&r.catch)r.catch(f)
  }).catch(()=>{if(my!==_tok)return;if(!window.LB_lastVoiceError)LB_vc('Cloud voice FAILED (no connection) - using backup voice',true);if(window.LB_STRICT_VOICE){if((tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
-function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational';stopAudio();
+function LB_chunkText(t,max){const x=String(t).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();if(x.length<=max)return [x];const parts=x.match(/[^.!?]+[.!?]*\s*/g)||[x],out=[];let cur='';parts.forEach(q=>{if((cur+q).length>max&&cur){out.push(cur.trim());cur=q}else cur+=q});if(cur.trim())out.push(cur.trim());return out}
+function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational';
+ if(String(t).length>200){const ch=LB_chunkText(t,190);if(ch.length>1){bridgeSpeakSeq(ch,mode,opts.done);return}}
+ stopAudio();
  const old=()=>{if(window.LB_STRICT_VOICE){setTimeout(()=>{if(opts.done)opts.done()},1500);return}const b64=LB_clip(t,mode);if(b64){playClip(b64,t,mode,opts.done);return}
   try{const u=utter(t,mode,LB_voiceId());if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}};
  cloudSay(t,mode,opts.done,old)}
-function bridgeSpeakSeq(arr,mode){stopAudio();let i=0;const next=()=>{if(i>=arr.length)return;const t=arr[i++];const m=mode||'conversational';
+function bridgeSpeakSeq(arr,mode,finalDone){stopAudio();let i=0;try{LB_ttsPrefetch(arr.map(t=>[t,mode||'conversational']))}catch(e){}const next=()=>{if(i>=arr.length){if(finalDone)finalDone();return}const t=arr[i++];const m=mode||'conversational';
  const old=()=>{const b64=LB_clip(t,m);if(b64){playClip(b64,t,m,next);return}
   try{const u=utter(t,m,LB_voiceId());u.onend=next;u.onerror=next;speechSynthesis.speak(u)}catch(e){next()}};
  cloudSay(t,m,next,old)};next()}
