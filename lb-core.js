@@ -145,7 +145,7 @@ function LB_vc(msg,bad){try{return;window.__vcl=window.__vcl||[];window.__vcl.pu
 /* Clearer speech (2026-11-15): the voice sometimes ran words together or skipped one. Always end with a full stop; in practice (pronunciation)
    mode put a short pause between words so every word is heard. */
 function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'').replace(/\s+/g,' ').trim();
- if(mode==='pronunciation'){const w=x.replace(/[.!?,]+$/,'').split(' ').filter(Boolean);if(w.length>1&&w.length<=8)x=w.join(', ');else x=w.join(' ');/* 2026-11-16: very short single words (Hi, No, Me) came out as a clip so short the start/end were cut off; say them twice so the whole word is heard */ if(w.length===1&&w[0].replace(/[^A-Za-z]/g,'').length<=3&&w[0].length>0)x=w[0]+'. '+w[0]}
+ if(mode==='pronunciation'){const w=x.replace(/[.!?,]+$/,'').split(' ').filter(Boolean);if(w.length>1&&w.length<=8)x=w.join(', ');else x=w.join(' ')}
  return /[.!?]$/.test(x)?x:x+'.'}
 let _tok=0,_cloudOff=0;
 /* FOUNDER RULE (2026-11-15): ONLY Apollo and Callista, everywhere. Never fall back to a backup/robot voice. If a line can't load it is retried 3 times, then skipped silently. */
@@ -161,8 +161,22 @@ function LB_au(){if(!_AU){_AU=new Audio();_AU.preload='auto';try{_AU.setAttribut
  const ev=['pointerdown','touchstart','touchend','click','keydown'];ev.forEach(e=>document.addEventListener(e,unlock,true))})();
 const _ttsBlobs=new Map(),_ttsDone=new Map();
 function LB_ttsUrl(t,mode){return 'https://api.lingua-bridge.us/api/tts?engine=aura2&voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&speaker='+LB_voice4()+'&v=2&text='+encodeURIComponent(LB_ttsText(t,mode).slice(0,220))}
+/* 2026-11-16: very short words (Hi, No, Me) are only a fraction of a second of sound, so speakers that are still waking up cut off the start or end.
+   Add a little silence before and after (real MP3 silence frames, same settings as the clip) so the whole word is heard. Longer lines are untouched. */
+function LB_padShort(b){try{if(!b||b.size>9000)return Promise.resolve(b);
+ return b.slice(0,4).arrayBuffer().then(ab=>{const h=new Uint8Array(ab);
+  if(h.length<4||h[0]!==0xFF||(h[1]&0xE0)!==0xE0)return b;
+  const ver=(h[1]>>3)&3,lay=(h[1]>>1)&3;if(lay!==1||ver===1)return b; /* Layer III, MPEG1/2/2.5 only */
+  const mpeg1=ver===3,bi=(h[2]>>4)&15,si=(h[2]>>2)&3;if(bi===0||bi===15||si===3)return b;
+  const BR1=[0,32,40,48,56,64,80,96,112,128,160,192,224,256,320],BR2=[0,8,16,24,32,40,48,56,64,80,96,112,128,144,160];
+  const SR=mpeg1?[44100,48000,32000]:(ver===2?[22050,24000,16000]:[11025,12000,8000]);
+  const br=(mpeg1?BR1:BR2)[bi]*1000,sr=SR[si],spf=mpeg1?1152:576,len=Math.floor((mpeg1?144:72)*br/sr);
+  if(!len||len>1500)return b;
+  const fr=new Uint8Array(len);fr[0]=h[0];fr[1]=h[1]|1;fr[2]=h[2]&~2;fr[3]=h[3]; /* no CRC, no padding byte */
+  const fms=spf/sr*1000,rep=n=>{const o=new Uint8Array(len*n);for(let i=0;i<n;i++)o.set(fr,i*len);return o};
+  return new Blob([rep(Math.ceil(180/fms)),b,rep(Math.ceil(300/fms))],{type:b.type||'audio/mpeg'})}).catch(()=>b)}catch(e){return Promise.resolve(b)}}
 function LB_ttsFetch(url){let p=_ttsBlobs.get(url);if(p)return p;
- p=fetch(url,{credentials:'include'}).then(r=>{if(!r.ok){window.LB_lastVoiceError=r.status;LB_vc('Cloud voice FAILED (error '+r.status+') - using backup voice',true);throw new Error(r.status)}return r.blob()}).then(b=>{if(!b||b.size<1200){window.LB_lastVoiceError=-1;LB_vc('Voice server sent a damaged line ('+(b&&b.size)+' bytes) - retrying',true);throw new Error('bad audio')}_ttsDone.set(url,b);if(_ttsDone.size>60){const k=_ttsDone.keys().next().value;_ttsDone.delete(k)}return b});
+ p=fetch(url,{credentials:'include'}).then(r=>{if(!r.ok){window.LB_lastVoiceError=r.status;LB_vc('Cloud voice FAILED (error '+r.status+') - using backup voice',true);throw new Error(r.status)}return r.blob()}).then(b=>{if(!b||b.size<1200){window.LB_lastVoiceError=-1;LB_vc('Voice server sent a damaged line ('+(b&&b.size)+' bytes) - retrying',true);throw new Error('bad audio')}return LB_padShort(b).then(pb=>{_ttsDone.set(url,pb);if(_ttsDone.size>60){const k=_ttsDone.keys().next().value;_ttsDone.delete(k)}return pb})});
  _ttsBlobs.set(url,p);p.catch(()=>{if(_ttsBlobs.get(url)===p)_ttsBlobs.delete(url)});if(_ttsBlobs.size>60){const k=_ttsBlobs.keys().next().value;_ttsBlobs.delete(k)}return p}
 /* list = [[text, mode], ...]; fetched one after another so we never flood the server */
 window.LB_ttsPrefetch=function(list){try{let chain=Promise.resolve();(list||[]).forEach(([t,m])=>{if(!t)return;chain=chain.then(()=>LB_ttsFetch(LB_ttsUrl(t,m||'conversational')).catch(()=>{}))})}catch(e){}};
