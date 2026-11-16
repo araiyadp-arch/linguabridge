@@ -523,9 +523,10 @@
       <span class="f-tag">Hello from me!</span>
     </div>
     <p class="f-name">Araiya Patel<small>Founder of LinguaBridge</small></p></div>
-    <div class="f-note">
+    <div class="f-note" id="founderNote">
       <p class="section-label">A note from the founder</p>
       <h2>I'm Araiya! Welcome.</h2>
+      <button type="button" class="listen-btn" data-listen-target="#founderNote" aria-pressed="false"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/></svg><span class="lt">Listen to my note</span></button>
       <p class="f-pull">I built LinguaBridge because no child should have to pay to learn how to say hello.</p>
       <p>I'm a student, and I spent months building this place one lesson at a time: every word, every game, every picture. I named the helper Bridge because English can be a bridge to new friends, to school, and to bright new opportunities.</p>
       <p>Everything here is free. When you tap a word and hear it, or get an answer right and the confetti falls, I hope you feel proud and think, "I can do this!"</p>
@@ -591,6 +592,7 @@
 
 
 <script src="lb-icons.js"></script>
+<script src="lb-listen.js?v=1"></script>
 <script src="lb-fun.js"></script>
 <script>
 /* After login everyone lands here. If signed in, the Log in buttons become "My lessons". */

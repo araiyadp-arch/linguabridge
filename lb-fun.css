@@ -174,3 +174,10 @@ a.fun-btn:focus-visible,.nav a:focus-visible{outline:4px solid #8B6BFF}
 #askBridgeHead{background:linear-gradient(135deg,#FF5FA2,#8B6BFF)!important}
 #askBridgeLog .ab-q{background:#8B6BFF!important}
 .gm-bridge{background:linear-gradient(135deg,#FF5FA2,#FF8A3D)!important}
+
+/* LISTEN BUTTON (founder note, About card) */
+.listen-btn{display:inline-flex;align-items:center;gap:10px;margin:4px 0 18px;padding:12px 22px;border:0;border-radius:999px;background:linear-gradient(135deg,#159FE8,#8B6BFF);color:#fff;font:700 1.05rem/1 'Fredoka','Lexend',sans-serif;cursor:pointer;box-shadow:0 5px 0 rgba(11,59,107,.25);transition:transform .15s,box-shadow .15s}
+.listen-btn:hover{transform:translateY(-2px)}.listen-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(11,59,107,.25)}
+.listen-btn.on{background:linear-gradient(135deg,#FF5FA2,#FF8A3D)}
+.listen-btn:focus-visible{outline:3px solid #0B3B6B;outline-offset:3px}
+.fun-founder .listen-btn{margin:2px 10px 8px 0;padding:10px 20px;font-size:1rem}
