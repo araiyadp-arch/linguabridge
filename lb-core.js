@@ -181,10 +181,18 @@ function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
   const run=()=>{(b.arrayBuffer?b.arrayBuffer():new Response(b).arrayBuffer()).then(ab=>new Promise((ok,no)=>{const p=c.decodeAudioData(ab,ok,no);if(p&&p.catch)p.catch(no)})).then(buf=>{if(my!==_tok)return;LB_vc('Backup player: decoded '+buf.duration.toFixed(1)+'s, sound channel is '+c.state);const s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate;const g=c.createGain();g.gain.value=BRIDGE_VOICE_CONFIG.volume;s.connect(g);g.connect(c.destination);
     const h={onended:null,onerror:null,pause(){try{s.onended=null;s.stop()}catch(e){}}};_cur=h;s.onended=()=>{if(my===_tok&&done)done()};s.start(0);LB_vc('Playing: '+LB_voice4()+' (backup player, channel '+c.state+')')}).catch(e=>{LB_vc('Backup player failed: '+(e&&(e.name||e.message)||'decode error'),true);f()})};
   if(c.state!=='running'){const r=c.resume();if(r&&r.then)r.then(run,run);else run()}else run()};
- const go=(src,b)=>{if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');const a=LB_au();try{a.pause()}catch(e){}a.onended=null;a.onerror=null;a.src=src;_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
-  a.playbackRate=rate;try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
-  let failed=false;const fail=(why)=>{if(failed||my!==_tok)return;failed=true;LB_vc('Player refused ('+(why&&why.name?why.name:'error '+(a.error&&a.error.code))+'), trying backup player',true);viaCtx(b)};
-  a.onended=()=>{if(done)done()};a.onerror=()=>fail();const r=a.play();if(r&&r.catch)r.catch(fail);else if(r===undefined)LB_vc('Playing (old browser)')};
+ const go=(src,b)=>{if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');
+  /* 1) a brand-new audio player started right in the tap: the same method the sound test page uses */
+  let tried2=false;
+  const second=(why)=>{if(tried2||my!==_tok)return;tried2=true;LB_vc('First player refused ('+(why&&why.name||'error')+'), trying shared player',true);
+   const a=LB_au();try{a.pause()}catch(e){}a.onended=null;a.onerror=null;a.src=src;_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
+   a.playbackRate=rate;try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
+   let failed=false;const fail=(w2)=>{if(failed||my!==_tok)return;failed=true;LB_vc('Shared player refused ('+(w2&&w2.name||'error')+'), trying backup player',true);viaCtx(b)};
+   a.onended=()=>{if(done)done()};a.onerror=()=>fail();const r=a.play();if(r&&r.catch)r.catch(fail)};
+  try{const n=new Audio(src);_cur=n;n.onended=()=>{if(my===_tok&&done)done()};n.onerror=()=>second();
+   const q=n.play();
+   const tune=()=>{try{n.volume=BRIDGE_VOICE_CONFIG.volume;n.playbackRate=rate;n.preservesPitch=true;n.webkitPreservesPitch=true}catch(e){}};
+   if(q&&q.then)q.then(tune).catch(second);else tune()}catch(e){second(e)}};
  const hit=_ttsDone.get(url);
  if(hit){go(URL.createObjectURL(hit),hit);return}
  LB_ttsFetch(url).then(b=>{go(URL.createObjectURL(b),b)}).catch(()=>{if(my!==_tok)return;if(!window.LB_lastVoiceError)LB_vc('Cloud voice FAILED (no connection) - using backup voice',true);if(window.LB_STRICT_VOICE){if((tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
