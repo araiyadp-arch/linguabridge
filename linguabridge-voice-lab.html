@@ -1,13 +1,29 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Voice Lab</title>
-<link rel="stylesheet" href="lb-fun.css"><style>body{font-family:Lexend,system-ui,sans-serif;margin:0;padding:24px;background:linear-gradient(180deg,#CFEBFF,#FFF9F1);color:#0B3B6B}main{max-width:760px;margin:0 auto}h1{font-family:Lora,serif}h2{margin:26px 0 8px}button{margin:5px;padding:10px 16px;border-radius:999px;border:3px solid #0B3B6B;background:#fff;font:700 .95rem Lexend,system-ui;color:#0B3B6B;cursor:pointer}button.on{background:#FF7A59;color:#fff;border-color:#FF7A59}#s{width:100%;padding:12px;border-radius:14px;border:3px solid #D5E6F5;font:1rem Lexend,system-ui}#st{margin:10px 0;font-weight:600}</style></head><body><main>
-<h1>Voice Lab</h1><p>Log in first (same browser), then tap a name to hear the sentence. Listen for breaths and for how friendly and lively it sounds. Tell me your favorite boy and girl voices.</p>
-<input id="s" value="Hello! Good morning. My name is Bridge. Let's learn English together!"><div id="st"></div>
-<h2>Younger sound</h2><p>Slide to make every voice below sound younger (this is the lift I would use on the site). 1.00 = normal. Tell me the number you like for the boy and for the girl.</p><input id="lift" type="range" min="1" max="1.25" step="0.01" value="1.00" style="width:100%"> <b id="liftv">1.00</b>
-<h2>Melo (no breaths, one voice)</h2><button data-e="melo" data-s="x">Melo</button>
-<h2>Aura 1 (current)</h2><button data-e="aura1" data-s="arcas">arcas</button><button data-e="aura1" data-s="orion">orion</button><button data-e="aura1" data-s="orpheus">orpheus</button><button data-e="aura1" data-s="angus">angus</button><button data-e="aura1" data-s="zeus">zeus</button><button data-e="aura1" data-s="perseus">perseus</button><button data-e="aura1" data-s="helios">helios</button><button data-e="aura1" data-s="luna">luna</button><button data-e="aura1" data-s="asteria">asteria</button><button data-e="aura1" data-s="athena">athena</button><button data-e="aura1" data-s="hera">hera</button><button data-e="aura1" data-s="stella">stella</button>
-<h2>Aura 2 (newer)</h2><button data-e="aura2" data-s="thalia">thalia</button><button data-e="aura2" data-s="andromeda">andromeda</button><button data-e="aura2" data-s="helena">helena</button><button data-e="aura2" data-s="apollo">apollo</button><button data-e="aura2" data-s="aries">aries</button><button data-e="aura2" data-s="amalthea">amalthea</button><button data-e="aura2" data-s="aurora">aurora</button><button data-e="aura2" data-s="callista">callista</button><button data-e="aura2" data-s="cora">cora</button><button data-e="aura2" data-s="delia">delia</button><button data-e="aura2" data-s="harmonia">harmonia</button><button data-e="aura2" data-s="iris">iris</button><button data-e="aura2" data-s="juno">juno</button><button data-e="aura2" data-s="mars">mars</button><button data-e="aura2" data-s="atlas">atlas</button><button data-e="aura2" data-s="hermes">hermes</button><button data-e="aura2" data-s="jupiter">jupiter</button><button data-e="aura2" data-s="pluto">pluto</button>
-</main><script>
-var cur=null;document.querySelectorAll('button').forEach(function(b){b.onclick=function(){var st=document.getElementById('st');st.textContent='Loading '+b.dataset.e+' '+b.dataset.s+'...';
-fetch('https://api.lingua-bridge.us/api/tts?engine='+b.dataset.e+'&speaker='+b.dataset.s+'&text='+encodeURIComponent(document.getElementById('s').value.slice(0,200)),{credentials:'include'}).then(function(r){if(!r.ok)throw new Error(r.status);return r.blob()}).then(function(bl){if(cur)cur.pause();cur=new Audio(URL.createObjectURL(bl));var L=parseFloat(document.getElementById('lift').value);try{cur.preservesPitch=false;cur.mozPreservesPitch=false;cur.webkitPreservesPitch=false}catch(e){}cur.playbackRate=L;document.querySelectorAll('button.on').forEach(function(x){x.className=''});b.className='on';st.textContent='Playing: '+b.dataset.e+' / '+b.dataset.s;cur.play()}).catch(function(e){st.textContent='Could not play '+b.dataset.s+' ('+e.message+'). If it says 401, log in first; 503 means that voice is not available.'})}});
-document.getElementById('lift').oninput=function(){document.getElementById('liftv').textContent=parseFloat(this.value).toFixed(2);if(cur)cur.playbackRate=parseFloat(this.value)};
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Voice lab</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#0B3B6B;background:#FFF6D6}
+button{font:inherit;font-weight:700;padding:10px 18px;border:0;border-radius:999px;background:#159FE8;color:#fff;cursor:pointer;margin:4px}
+table{border-collapse:collapse;width:100%;background:#fff;border-radius:12px;overflow:hidden}td,th{padding:8px 10px;border-bottom:1px solid #eee;text-align:left}
+.ok{color:#0a8a43;font-weight:700}.bad{color:#c0392b;font-weight:700}</style></head><body>
+<h1>Voice lab</h1>
+<p>Tap <b>Test all</b>. It checks whether each version of the word ends cleanly. Then tap Play on each and tell me which ones sound complete.</p>
+<p><button id="run">Test all</button> Voice: <select id="v"><option value="apollo">Apollo</option><option value="callista">Callista</option></select></p>
+<table id="t"><tr><th>Text sent</th><th>Length</th><th>Ending</th><th></th></tr></table>
+<script>
+const C=['Hi.','Hi!','Hi...','Hi, hi.','Hi there.','Oh, hi.','Hi. Hi.','Hey.','Hello.','No.','Me.'];
+const AC=window.AudioContext||window.webkitAudioContext;let ctx;
+const url=(t,sp)=>'https://api.lingua-bridge.us/api/tts?engine=aura2&voice='+(sp==='callista'?'girl':'boy')+'&speaker='+sp+'&v=2&text='+encodeURIComponent(t);
+const blobs={};
+document.getElementById('run').onclick=async()=>{ctx=ctx||new AC();try{await ctx.resume()}catch(e){}
+ const sp=document.getElementById('v').value,t=document.getElementById('t');t.innerHTML='<tr><th>Text sent</th><th>Length</th><th>Ending</th><th></th></tr>';
+ for(const x of C){const tr=document.createElement('tr');tr.innerHTML='<td>'+x+'</td><td>...</td><td>...</td><td></td>';t.appendChild(tr);
+  try{const r=await fetch(url(x,sp),{credentials:'include'});if(!r.ok)throw new Error('server '+r.status);const b=await r.blob();blobs[x]=b;
+   const buf=await ctx.decodeAudioData(await b.arrayBuffer()),d=buf.getChannelData(0),sr=buf.sampleRate;
+   let peak=0;for(let i=0;i<d.length;i++)peak=Math.max(peak,Math.abs(d[i]));
+   const n=Math.floor(sr*.03);let end=0;for(let i=d.length-n;i<d.length;i++)end=Math.max(end,Math.abs(d[i]));
+   const ratio=end/peak,clean=ratio<.12;
+   tr.children[1].textContent=buf.duration.toFixed(2)+'s ('+b.size+' bytes)';
+   tr.children[2].innerHTML='<span class="'+(clean?'ok':'bad')+'">'+(clean?'ends softly (complete)':'ends abruptly (cut off)')+'</span> ['+ratio.toFixed(2)+']';
+   const pb=document.createElement('button');pb.textContent='Play';pb.onclick=async()=>{ctx.resume();const bf=await ctx.decodeAudioData(await blobs[x].arrayBuffer());const s=ctx.createBufferSource();s.buffer=bf;s.connect(ctx.destination);s.start()};tr.children[3].appendChild(pb);
+  }catch(e){tr.children[1].textContent='error';tr.children[2].textContent=String(e&&e.message||e)}}};
 </script></body></html>
