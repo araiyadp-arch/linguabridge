@@ -289,9 +289,28 @@ const BAD_SUBSTR_RE = /(fuck|fuk|fck|shit|bitch|bastard|asshole|cunt|nigg|faggot
 function leetNormalize(str) {
   return str.toLowerCase().replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e").replace(/4/g, "a").replace(/5/g, "s").replace(/7/g, "t").replace(/8/g, "b").replace(/[@]/g, "a").replace(/[$]/g, "s");
 }
+// ---- Cuss words in many languages (2026-11-15, founder request) ----
+// Written the way people type them with English letters (names and usernames only allow A-Z, so other
+// alphabets cannot be entered at all). LONG words are blocked even inside a longer name; SHORT words only
+// when they stand alone, so real names are not blocked by accident. No list can cover every word in every
+// language, so this is a strong first filter, not a guarantee. Add words here any time.
+const INTL_LONG = ["mierda","joder","cabron","pendejo","culero","chinga","maricon","gilipollas","hijodeputa","merde","putain","salope","connard","connasse","encule","batard","scheisse","arschloch","fotze","hurensohn","wichser","schwuchtel","ficken","schlampe","cazzo","vaffanculo","stronzo","puttana","minchia","caralho","buceta","filhodaputa","klootzak","kanker","blyad","blyat","pizda","khuy","mudak","pidor","pidar","gandon","orospu","siktir","madarchod","behenchod","bhenchod","chutiya","bhosdi","bhosdike","harami","caonima","shabi","tamade","wangbadan","diunei","shibal","ssibal","gaesaekki","jotgat","kurwa","pierdol","skurwysyn","gamoto","poutana","putangina","tarantado","kantot","kontol","memek","ngentot","bajingan","goblok","sharmouta","sharmuta","kosomak","chikushou","bakayaro","kisama","chinko","anjing","bangsat","fuckyou","motherfuck","dumbass","jackass","dipshit","bullshit","arsehole","wanker","twat","bollocks","prick"];
+const INTL_WORD = ["cono","zorra","chingar","hdp","pute","bordel","fick","kacke","merda","foda","foder","porra","viado","cuzao","kut","tering","suka","ebat","ebal","amk","ibne","yarak","ahbal","gandu","gaand","kuso","chuj","dupa","gago","tangina","puki","pakyu","dmm","vcl","tolol","ass","arse","damn","crap","piss","puta","puto","verga","troia","nique","sibal","malaka","manko"];
+const INTL_LONG_RE = new RegExp("(" + INTL_LONG.join("|") + ")");
+function intlDirty(str, asWholeWord) {
+  const lower = leetNormalize(String(str)).replace(/ñ/g, "n");
+  const letters = lower.replace(/[^a-z]/g, "");
+  if (INTL_LONG_RE.test(letters)) return true;
+  const tokens = lower.split(/[^a-zñ]+/).filter(Boolean);
+  const set = new Set(INTL_WORD);
+  if (tokens.some((t) => set.has(t))) return true;
+  if (asWholeWord && set.has(letters)) return true;
+  // word list entries also match as the start or end of a username like "suka2012" or "2012suka"
+  return false;
+}
 function dirtyText(str) {
   const n = leetNormalize(str).replace(/[^a-z]/g, "");
-  return BAD_SUBSTR_RE.test(n) || BAD_WORDS_RE.test(str) || HATE_RE.test(str);
+  return BAD_SUBSTR_RE.test(n) || BAD_WORDS_RE.test(str) || HATE_RE.test(str) || intlDirty(str, true);
 }
 
 async function handleSignup(request, env) {
@@ -720,11 +739,16 @@ const PERSONAL_SHARE_RE = /(my (full )?name is|i am called|my (phone|number|addr
 const PERSONAL_ASK_RE = /(how old are you|your age|where do you live|what.?s your (real )?name|who made you|are you a (boy|girl)|do you have (a )?(family|mom|dad|friends?)|are you (single|married)|your (phone|address|school|birthday))/i;
 const STUDENT_CHAT_RE = /(tell|message|text|send|say to|talk to|chat with|ask)\s+(\w+\s+)?(another|other|my)?\s*(student|friend|classmate|kid|him|her|them)\b|\bpass (this|a) message|send (a )?message to/i;
 
+function intlDirtyTokens(str) {
+  const tokens = leetNormalize(String(str)).replace(/ñ/g, "n").split(/[^a-z]+/).filter(Boolean);
+  const longs = INTL_LONG, shorts = new Set(INTL_WORD);
+  return tokens.some((t) => shorts.has(t) || longs.includes(t));
+}
 function bridgeFilter(question) {
   if (SELFHARM_RE.test(question)) return BRIDGE_HELP_MSG;
   if (ABUSE_RE.test(question)) return BRIDGE_ABUSE_MSG;
   if (SAD_RE.test(question)) return BRIDGE_SAD_MSG;
-  if (BAD_WORDS_RE.test(question) || HATE_RE.test(question)) return BRIDGE_ADULT_MSG;
+  if (BAD_WORDS_RE.test(question) || HATE_RE.test(question) || intlDirtyTokens(question)) return BRIDGE_ADULT_MSG;
   if (PERSONAL_SHARE_RE.test(question)) return BRIDGE_PRIVATE_MSG;
   if (PERSONAL_ASK_RE.test(question)) return BRIDGE_REPHRASE_MSG;
   if (STUDENT_CHAT_RE.test(question)) return BRIDGE_ADULT_MSG;
