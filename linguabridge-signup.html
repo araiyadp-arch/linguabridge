@@ -431,7 +431,7 @@
     <div class="hero-text">
       <p class="eyebrow">Create your account</p>
       <h1>Sign Up for LinguaBridge</h1>
-      <p class="hero-copy"><span>Create your parent account with a username and password, then set up a simple username and PIN for each of your kids — no email needed for them. Bridge is ready to greet your kids and make learning feel like an adventure, every step of the way.</span></p>
+      <p class="hero-copy"><span>Create your account with your name, a username and a password. Bridge is ready to greet your kids and make learning feel like an adventure, every step of the way.</span></p>
       <p class="private-note">Takes about a minute • Free</p>
     </div>
 
@@ -476,9 +476,9 @@
      ============================================================ -->
 <section class="login-section">
   <div class="login-card">
-    <span class="placeholder-badge">Parent account</span>
-    <h2>Create Your Parent Account</h2>
-    <p class="login-sub"><span>This is the grown-up account. Pick a username and a password, and you can start right away. Then you will set up a simple username and PIN for each of your kids.</span></p>
+    <span class="placeholder-badge">Sign up</span>
+    <h2>Create Your Account</h2>
+    <p class="login-sub"><span>Tell us your name, pick a username and a password, and start learning right away. It is free.</span></p>
 
     <div id="signup-done" style="display:none; text-align:center; padding:8px 0 4px;">
       <h3 style="margin:0 0 10px; color:var(--navy);">Thank you! Your account is waiting for approval.</h3>
@@ -487,9 +487,22 @@
     </div>
     <form id="signup-form">
       <div class="form-field">
+        <label for="signup-first">First name</label>
+        <input type="text" id="signup-first" name="signup-first" autocomplete="given-name" maxlength="40" required>
+      </div>
+      <div class="form-field">
+        <label for="signup-last">Last name</label>
+        <input type="text" id="signup-last" name="signup-last" autocomplete="family-name" maxlength="40" required>
+      </div>
+      <div class="form-field">
         <label for="signup-email">Username</label>
-        <p class="field-helper">Pick a unique username: 3 to 20 letters or numbers, no spaces. Please do not use your real name.</p>
+        <p class="field-helper">Pick a unique username: 3 to 20 letters or numbers, no spaces. Please use kind, clean words only: no bad words, no hate, nothing unfair to any group of people.</p>
         <input type="text" id="signup-email" name="signup-email" autocomplete="username" autocapitalize="none" spellcheck="false" minlength="3" maxlength="20" pattern="[A-Za-z0-9]{3,20}" required>
+      </div>
+      <div class="form-field">
+        <label for="signup-contact">Email or phone number</label>
+        <p class="field-helper">Use an email, or a phone number with the country code, like +1 555 123 4567.</p>
+        <input type="text" id="signup-contact" name="signup-contact" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="200" required>
       </div>
       <div class="form-field">
         <label for="signup-password">Password</label>
@@ -585,13 +598,13 @@
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: email, password: password }),
+          body: JSON.stringify({ first_name: document.getElementById('signup-first').value.trim(), last_name: document.getElementById('signup-last').value.trim(), username: email, contact: document.getElementById('signup-contact').value.trim(), password: password }),
         });
 
         const data = await res.json().catch(function () { return {}; });
 
         if (res.ok) {
-          window.location.href = 'linguabridge-manage-children.html';
+          window.location.href = 'linguabridge-dashboard.html';
           return;
         }
 

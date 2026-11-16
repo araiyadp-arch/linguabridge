@@ -279,10 +279,22 @@ function formatInvite(code) {
   return "LB-" + code.slice(0, 4) + "-" + code.slice(4, 8);
 }
 
+// ---- Signup rules (2026-11-15, founder request) ----
+// One simple account type: first + last name, unique username, strong password, and an email OR a
+// phone number with country code. No invite code and no approval. Names and usernames must be clean:
+// no swearing, hate, sexism, discrimination or sexual words (checked here on the server).
+const NAME_RE = /^[A-Za-z][A-Za-z '\-]{0,39}$/;
+const PHONE_RE = /^\+[1-9][0-9]{6,14}$/;
+const BAD_SUBSTR_RE = /(fuck|fuk|fck|shit|bitch|bastard|asshole|cunt|nigg|faggot|slut|whore|porn|rapist|nazi|hitler|penis|vagina|pussy|retard|kike|chink|wetback|tranny|kkk|terrorist|jihad|suicid|molest|pedo)/;
+function leetNormalize(str) {
+  return str.toLowerCase().replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e").replace(/4/g, "a").replace(/5/g, "s").replace(/7/g, "t").replace(/8/g, "b").replace(/[@]/g, "a").replace(/[$]/g, "s");
+}
+function dirtyText(str) {
+  const n = leetNormalize(str).replace(/[^a-z]/g, "");
+  return BAD_SUBSTR_RE.test(n) || BAD_WORDS_RE.test(str) || HATE_RE.test(str);
+}
+
 async function handleSignup(request, env) {
-  // Open signup (2026-11-15, founder request): no invite code and no approval step.
-  // A grown-up picks a unique username + password and is logged in right away.
-  // Kept: strong password rule, and a per-device limit so bots cannot mass-create accounts.
   let body;
   try {
     body = await request.json();
@@ -296,20 +308,47 @@ async function handleSignup(request, env) {
     return jsonResponse({ error: "Too many new accounts from this device today. Please try again tomorrow." }, 429, request);
   }
 
+  const first = (body.first_name || "").toString().trim().replace(/\s+/g, " ");
+  const last = (body.last_name || "").toString().trim().replace(/\s+/g, " ");
   const username = (body.username || "").toString().trim();
   const password = (body.password || "").toString();
+  const contact = (body.contact || "").toString().trim();
 
+  if (!NAME_RE.test(first) || !NAME_RE.test(last)) {
+    return jsonResponse({ error: "Please enter your first and last name using letters only." }, 400, request);
+  }
   if (!CHILD_USERNAME_RE.test(username)) {
     return jsonResponse({ error: "Username must be 3-20 letters or numbers, no spaces or symbols." }, 400, request);
+  }
+  if (dirtyText(first) || dirtyText(last) || dirtyText(username)) {
+    return jsonResponse({ error: "Please use kind, clean words only. Names and usernames cannot have bad words, hate, or anything unfair to any group of people. Please try again." }, 400, request);
   }
   const pwProblem = passwordProblem(password, username);
   if (pwProblem) {
     return jsonResponse({ error: pwProblem }, 400, request);
   }
+  let email = null, phone = null;
+  if (contact.includes("@")) {
+    email = contact.toLowerCase();
+    if (!EMAIL_RE.test(email) || email.length > 200) {
+      return jsonResponse({ error: "Please enter a valid email address, or a phone number with country code like +1 555 123 4567." }, 400, request);
+    }
+  } else {
+    phone = contact.replace(/[\s().-]/g, "");
+    if (!PHONE_RE.test(phone)) {
+      return jsonResponse({ error: "Please enter a valid email address, or a phone number with country code like +1 555 123 4567." }, 400, request);
+    }
+  }
 
   const existing = await env.DB.prepare("SELECT id FROM users WHERE lower(username) = lower(?)").bind(username).first();
   if (existing) {
     return jsonResponse({ error: "That username is already taken. Try another one." }, 409, request);
+  }
+  const dupe = email
+    ? await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first()
+    : await env.DB.prepare("SELECT id FROM users WHERE phone = ?").bind(phone).first();
+  if (dupe) {
+    return jsonResponse({ error: "An account with that email or phone number already exists. Try logging in instead." }, 409, request);
   }
 
   const { hash, salt, iterations } = await hashPassword(password);
@@ -317,20 +356,20 @@ async function handleSignup(request, env) {
 
   try {
     await env.DB.prepare(
-      `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id, status, invite_code)
-       VALUES (?, ?, ?, ?, ?, 'parent', NULL, NULL, 'approved', NULL)`
+      `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id, status, invite_code, first_name, last_name, phone)
+       VALUES (?, ?, ?, ?, ?, 'student', ?, NULL, 'approved', NULL, ?, ?, ?)`
     )
-      .bind(id, username, hash, salt, iterations)
+      .bind(id, username, hash, salt, iterations, email, first, last, phone)
       .run();
   } catch (e) {
-    return jsonResponse({ error: "That username is already taken. Try another one." }, 409, request);
+    return jsonResponse({ error: "That username, email or phone number is already used. Try another." }, 409, request);
   }
 
   // At most 6 new accounts per device per day.
   await recordFailure(env, ipKey, 6, 24 * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
 
   const token = await createSession(env, id);
-  return jsonResponse({ authenticated: true, username, role: "parent" }, 200, request, setSessionCookieHeaders(token));
+  return jsonResponse({ authenticated: true, username, role: "student" }, 200, request, setSessionCookieHeaders(token));
 }
 
 async function handleListChildren(request, env) {
@@ -519,9 +558,9 @@ async function handleAdminOverview(request, env) {
      WHERE u.role = 'parent' AND u.status = 'pending' ORDER BY u.created_at ASC LIMIT 200`
   ).all();
   const approved = await env.DB.prepare(
-    `SELECT u.id, COALESCE(u.email, u.username) as email, u.status, u.created_at,
+    `SELECT u.id, CASE WHEN u.first_name IS NOT NULL THEN u.first_name || ' ' || u.last_name || ' (' || u.username || ') - ' || COALESCE(u.email, u.phone) ELSE COALESCE(u.email, u.username) END as email, u.status, u.created_at,
             (SELECT COUNT(*) FROM users c WHERE c.parent_id = u.id) as children
-     FROM users u WHERE u.role = 'parent' AND u.status != 'pending' ORDER BY u.created_at DESC LIMIT 200`
+     FROM users u WHERE (u.role = 'parent' OR (u.role = 'student' AND u.parent_id IS NULL)) AND u.status != 'pending' ORDER BY u.created_at DESC LIMIT 200`
   ).all();
   const invites = await env.DB.prepare(
     "SELECT code, label, max_uses, uses, expires_at, active FROM invite_codes ORDER BY created_at DESC LIMIT 100"
@@ -554,7 +593,7 @@ async function handleAdminAction(request, env, action) {
   }
   if (action === "disable" || action === "enable") {
     const status = action === "disable" ? "disabled" : "approved";
-    await env.DB.prepare("UPDATE users SET status = ? WHERE id = ? AND role = 'parent'").bind(status, id).run();
+    await env.DB.prepare("UPDATE users SET status = ? WHERE id = ? AND (role = 'parent' OR (role = 'student' AND parent_id IS NULL))").bind(status, id).run();
     if (action === "disable") {
       await env.DB.prepare(
         "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE id = ? OR parent_id = ?)"
