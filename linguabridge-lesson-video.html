@@ -149,6 +149,15 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 .scene .em.has-photo~.wd{font-size:clamp(1.8rem,6.5vw,3rem)}
 @media(max-width:640px){.scene .em img.vphoto{width:min(56%,230px)}}
 .vb{left:2%!important;bottom:15%!important;z-index:3}
+
+.sayit{display:inline-flex;align-items:center;gap:8px}
+.sayit svg{flex:none}
+.sayit.turn{background:#FF5FA2;animation:micPulse 1s ease-in-out infinite;position:relative;overflow:hidden;line-height:1.25;padding:6px 22px 13px;margin-top:8px}
+.sayit .tbar{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgba(255,255,255,.35)}
+.sayit .tbar b{display:block;height:100%;width:100%;background:#fff;transform-origin:left;animation:tbarGo linear forwards}
+@keyframes tbarGo{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@keyframes micPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@media(prefers-reduced-motion:reduce){.sayit.turn{animation:none}}
 </style><style id="lb-logo">.logo-mark{height:68px!important;width:auto!important;border-radius:14px;box-shadow:0 1px 6px rgba(11,59,107,.18);background:#fff}@media(max-width:560px){.logo-mark{height:56px!important}}</style>
 <link rel="stylesheet" href="lb-fun-app.css">
 </head><body>
@@ -217,7 +226,7 @@ else{
  const total=S.reduce((a,x)=>a+dur(x),0);
  let sceneTok=0;
  function scene(k){const c=S[k];vid.className='vid bg'+(k%4);
-  vid.innerHTML='<div class="scene">'+(c.dl?'<div class="dl">'+c.dl.map((x,j)=>'<div style="animation-delay:'+(j*1.6)+'s">'+x+'</div>').join('')+'</div>':'<div class="em" id="vph" aria-hidden="true">'+c.em+'</div>'+(c.wd?'<div class="wd">'+c.wd+'</div><div class="sayit">Say it with me!</div>':''))+'</div>'+BR.replace('class="bridge"','class="vb"')+[8,24,70,88].map((x,j)=>'<i class="spk" style="left:'+x+'%;top:'+(10+j*14)+'%;background:'+['#FFC83D','#F0604D','#9B6BE0','#58B947'][(k+j)%4]+';animation-delay:'+(j*.5)+'s"></i>').join('')+'<div class="cap" aria-live="polite">'+c.say+'</div><div class="bar"><i id="pg"></i></div>';
+  vid.innerHTML='<div class="scene">'+(c.dl?'<div class="dl">'+c.dl.map((x,j)=>'<div style="animation-delay:'+(j*1.6)+'s">'+x+'</div>').join('')+'</div>':'<div class="em" id="vph" aria-hidden="true">'+c.em+'</div>'+(c.wd?'<div class="wd">'+c.wd+'</div><div class="sayit" id="sayit"><svg viewBox="0 0 24 24" width="1.25em" height="1.25em" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0014 0M12 18v3M9 21h6"/></svg><span>Say it with me!</span></div>':''))+'</div>'+BR.replace('class="bridge"','class="vb"')+[8,24,70,88].map((x,j)=>'<i class="spk" style="left:'+x+'%;top:'+(10+j*14)+'%;background:'+['#FFC83D','#F0604D','#9B6BE0','#58B947'][(k+j)%4]+';animation-delay:'+(j*.5)+'s"></i>').join('')+'<div class="cap" aria-live="polite">'+c.say+'</div><div class="bar"><i id="pg"></i></div>';
   /* 2026-11-16: Bridge introduces himself in the middle of the screen (first scene), then glides to his usual corner. */
   try{const vb=vid.querySelector('.vb');if(vb&&k<2&&!(c.wd)){
    const em0=vid.querySelector('.em');if(k===0&&em0)em0.style.display='none';
@@ -234,8 +243,14 @@ else{
   try{const up=[];for(let q=k;q<Math.min(S.length,k+3);q++){const z=S[q];if(z.say)up.push([z.say,'conversational']);if(z.wd)up.push([z.wd.replace(/<[^>]*>/g,''),'pronunciation'])}if(window.LB_ttsPrefetch&&!mute)LB_ttsPrefetch(up)}catch(e){}
   const tok=++sceneTok,t0=Date.now();if(c.wd){try{LB_photoInto(document.getElementById('vph'),c.wd,c.say,'vphoto')}catch(e){}}if(c.wd){try{LB_confetti(700)}catch(e){}}
   const next=()=>{if(tok!==sceneTok||!playing)return;sceneTok++;clearTimeout(tmr);if(k<S.length-1){i=k+1;scene(i)}else{playing=false;document.getElementById('pp').textContent='▶ Play';try{LB_confetti()}catch(e){}}};
-  if(!mute){try{bridgeSpeak(c.say,{mode:'conversational',done:()=>{if(tok!==sceneTok)return;if(c.wd){setTimeout(()=>{if(tok!==sceneTok)return;try{bridgeSpeak(c.wd.replace(/<[^>]*>/g,''),{mode:'pronunciation',done:()=>{if(tok!==sceneTok)return;setTimeout(next,700)}})}catch(e){next()}},350)}else{setTimeout(next,Math.max(400,2200-(Date.now()-t0)))}}})}catch(e){}}
-  tmr=setTimeout(next,mute?dur(c)+(c.wd?1800:0):dur(c)+9000)}
+  /* 2026-11-16: after Bridge says the word, a microphone + a quiet pause so the child can say it too */
+  const TURN=4500;
+  const turn=()=>{if(tok!==sceneTok||!playing)return;const el=document.getElementById('sayit');
+   if(el){el.className='sayit turn';el.innerHTML='<svg viewBox="0 0 24 24" width="1.25em" height="1.25em" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M5 11a7 7 0 0014 0M12 18v3M9 21h6"/></svg><span>Your turn! Say it</span><i class="tbar"><b style="animation-duration:'+TURN+'ms"></b></i>'}
+   setTimeout(()=>{if(tok===sceneTok)next()},TURN)};
+  if(mute&&c.wd){setTimeout(turn,Math.max(1500,dur(c)-1200))}
+  if(!mute){try{bridgeSpeak(c.say,{mode:'conversational',done:()=>{if(tok!==sceneTok)return;if(c.wd){setTimeout(()=>{if(tok!==sceneTok)return;try{bridgeSpeak(c.wd.replace(/<[^>]*>/g,''),{mode:'pronunciation',done:()=>{if(tok!==sceneTok)return;setTimeout(turn,500)}})}catch(e){next()}},350)}else{setTimeout(next,Math.max(400,2200-(Date.now()-t0)))}}})}catch(e){}}
+  tmr=setTimeout(next,mute?dur(c)+(c.wd?1800+TURN:0):dur(c)+9000+(c.wd?TURN:0))}
  function play(){playing=true;document.getElementById('pp').textContent='⏸ Pause';scene(i)}
  function pause(){playing=false;sceneTok++;clearTimeout(tmr);stopAudio();document.getElementById('pp').textContent='▶ Play'}
  vid.innerHTML='<button class="start" id="go" aria-label="Play video"><span>▶ Play video</span></button>';
