@@ -280,7 +280,7 @@ function LB_gameStyles(){
  .gm-bubble{background:#fff;border-radius:16px 16px 16px 4px;padding:10px 14px;font-weight:600;color:#0B3B6B;box-shadow:0 2px 6px rgba(11,59,107,.12);flex:1;line-height:1.35}
  .gm-pic{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:24px;box-shadow:0 4px 0 #CFE8F8;min-height:170px;font-size:7rem;line-height:1;margin-bottom:12px}
  .gm-pic svg,.gm-pic .lbe{width:130px;height:130px}.gm-pic{min-height:230px!important;padding:10px}.gm-pic img.lbphoto{width:100%;max-width:340px;height:230px;object-fit:cover;border-radius:20px;display:block}
- .gm-clue{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;color:#0B3B6B;font-weight:500;text-align:center}
+ .gm-clue{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;color:#0B3B6B;font-weight:700;font-size:1.45rem;line-height:1.35;text-align:center;background:#fff;border-radius:24px;box-shadow:0 4px 0 #CFE8F8;min-height:150px;padding:22px 18px}
  .gm-clue .gm-ear{flex:0 0 40px;width:40px;height:40px}
  .gm-word{display:flex;align-items:center;justify-content:center;gap:12px;margin:6px 0 16px}
  .gm-word b{font-family:var(--font-head,serif);font-size:2rem;color:#0B3B6B;background:#fff;padding:8px 22px;border-radius:16px;box-shadow:0 3px 0 #CFE8F8}
@@ -346,12 +346,11 @@ function LB_mountMatchGame(el,items,onDone){
  function ask(){
   if(step>=order.length){LB_gmWin(sh,'You learned every word!',onDone);return}
   const it=items[order[step]];sh.setDots(order.length,step);
-  sh.say('Look at the picture. What is it? Tap the right word!');
+  sh.say('Read the question. What is it? Tap the right word!');
   const choices=LB_shuffle([it].concat(LB_shuffle(items.filter(x=>x!==it)).slice(0,2)));
-  sh.body.innerHTML='<div class="gm-pic"></div><div class="gm-clue"><span></span><button class="gm-ear" type="button" aria-label="Hear the clue">'+LB_speakerSVG()+'</button></div><div class="gm-opts"></div>';
-  sh.body.querySelector('.gm-pic').textContent=it.emoji;LB_photoInto(sh.body.querySelector('.gm-pic'),it.word,it.hint);
-  const clue=it.hint||'';sh.body.querySelector('.gm-clue span').textContent=clue;
-  if(!clue)sh.body.querySelector('.gm-clue').style.display='none';
+  sh.body.innerHTML='<div class="gm-clue"><span></span><button class="gm-ear" type="button" aria-label="Hear the clue">'+LB_speakerSVG()+'</button></div><div class="gm-opts"></div>';
+  /* 2026-11-16: founder asked for NO pictures in What Is It?: just the question (the clue) and the word choices. */
+  const clue=it.hint||'Tap the word you hear.';sh.body.querySelector('.gm-clue span').textContent=clue;
   sh.body.querySelector('.gm-ear').onclick=()=>{try{bridgeSpeak(clue,{mode:'conversational'})}catch(e){}};
   const opts=sh.body.querySelector('.gm-opts');let locked=false,wrong=0;
   function win(b){locked=true;b.classList.add('right');sh.say(LB_pickMsg(GM_CHEER)+' It is "'+it.word+'".');
