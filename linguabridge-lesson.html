@@ -172,15 +172,20 @@ const bigBridge=bridgeSvg.replace('class="bridge"','class="bridge big"');
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const PRAISE=["🌟 Wow, that sounded great!","🎉 Yes! I heard you loud and clear!","👏 Great speaking! You've got it!","😊 Super! That was just right!"];
 function tryWord(key,say,btn){
+ try{stopAudio()}catch(e){}
  if(!SR){say.textContent="😊 Your device can't listen just yet, but you can still practice! Listen to me, then say it out loud like you're talking to a friend.";return}
  const rec=new SR();rec.lang='en-US';say.textContent="🎤 I'm listening! Say “"+key+"” whenever you're ready.";
  if(btn)btn.classList.add('listening');
  const stop=()=>{if(btn)btn.classList.remove('listening')};
- rec.onresult=e=>{stop();const raw=e.results[0][0].transcript,h=raw.toLowerCase().replace(/[^a-z ]/g,'');
-  if(h.includes(key.toLowerCase())){say.textContent=PRAISE[Math.floor(Math.random()*PRAISE.length)]}
+ let got=0;
+ const nm=x=>String(x).toLowerCase().replace(/[\u2019']/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\b(whats|im|youre|thats|hes|shes)\b/g,m=>({whats:'what is',im:'i am',youre:'you are',thats:'that is',hes:'he is',shes:'she is'}[m])).replace(/\s+/g,' ').trim();
+ /* a word like "Hello! / Hi!" accepts either one; longer phrases pass when most of the words were heard */
+ const okSay=raw=>{const heard=nm(raw);if(!heard)return false;return String(key).split('/').map(nm).filter(Boolean).some(k=>{if(heard.includes(k))return true;const kw=k.split(' ').filter(w=>w.length>1);if(kw.length<3)return false;const hw=heard.split(' ');return kw.filter(w=>hw.includes(w)).length>=Math.ceil(kw.length*.7)})};
+ rec.onresult=e=>{got=1;stop();const raw=e.results[0][0].transcript;
+  if(okSay(raw)){say.textContent=PRAISE[Math.floor(Math.random()*PRAISE.length)]}
   else{say.textContent="Ooh, I heard “"+raw+"”. That was a brave try! 💛 Let's say it together: “"+key+"”. Tap Speak when you're ready to try again.";bridgeSpeak(key,{mode:'pronunciation'})}};
- rec.onerror=e=>{stop();say.textContent=e.error==='not-allowed'?"I can't use the microphone right now, and that's okay! Listen to me, then say it out loud on your own. 😊":"I didn't catch that, but that's okay! Tap Speak and we'll try again. No rush! 😊"};
- rec.onend=stop;
+ let errd=0;rec.onerror=e=>{errd=1;stop();say.textContent=e.error==='not-allowed'?"I can't use the microphone right now, and that's okay! Listen to me, then say it out loud on your own. 😊":"I didn't catch that, but that's okay! Tap Speak and we'll try again. No rush! 😊"};
+ rec.onend=()=>{stop();if(!got&&!errd)say.textContent="I didn't hear anything. Tap Speak and say it a little louder. No rush! \ud83d\ude0a"};
  try{rec.start()}catch(x){stop()}}
 function vocab(el,list,say){list.forEach(([w,hint,emoji])=>{const r=document.createElement('div');r.className='vocab';
  r.innerHTML='<span class="ph" style="font-size:1.8rem" aria-hidden="true">'+emoji+'</span><span class="w">'+w+'<span class="h">'+hint+'</span></span><span class="btns"><button class="mini">🔊 Listen</button><button class="mini rec">🎤 Speak</button></span>';
@@ -217,10 +222,10 @@ const steps=[
  el=>{el.innerHTML='<div class="center">'+bigBridge+'<h2 style="margin:14px 0 8px">'+C.introTitle+'</h2><p class="muted" style="margin:0;line-height:1.6">'+C.introLine+'</p></div><div class="obj">'+C.objective+'</div><p style="text-align:center;margin:18px 0 4px"><a class="btn btn-primary" href="linguabridge-lesson-video.html?n='+n+(review?'&review='+n:'')+'">Watch the lesson video</a></p><p class="muted" style="text-align:center;margin:0;font-size:.88rem">A short, fun video about today\'s lesson</p>'},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">'+C.vocab1Title+'</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Listen, then say each word out loud.</p><div id="vl"></div><p class="say" id="say" aria-live="polite"></p>';
   vocab(el.querySelector('#vl'),C.vocab1,el.querySelector('#say'))},
- el=>{el.innerHTML='<h2 style="margin-bottom:6px">When do we say it?</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Tap to hear each one.</p><div id="w"></div>';
+ el=>{el.innerHTML='<h2 style="margin-bottom:6px">When do we say it?</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Tap to hear each one, then say it out loud.</p><div id="w"></div><p class="say" id="say" aria-live="polite"></p>';
   C.whenSayIt.forEach(([w,h,e,sp])=>{
-   const r=document.createElement('div');r.className='vocab';r.innerHTML='<span class="ph" style="font-size:1.8rem" aria-hidden="true">'+e+'</span><span class="w">'+w+'<span class="h">'+h+'</span></span><span class="btns"><button class="mini">🔊 Listen</button></span>';
-   try{LB_photoInto(r.querySelector('.ph'),w,h)}catch(x){}r.querySelector('button').onclick=()=>speak(sp);el.querySelector('#w').appendChild(r)})},
+   const r=document.createElement('div');r.className='vocab';r.innerHTML='<span class="ph" style="font-size:1.8rem" aria-hidden="true">'+e+'</span><span class="w">'+w+'<span class="h">'+h+'</span></span><span class="btns"><button class="mini">🔊 Listen</button><button class="mini rec">🎤 Speak</button></span>';
+   try{LB_photoInto(r.querySelector('.ph'),w,h)}catch(x){}const [la,sb]=r.querySelectorAll('button');la.setAttribute('aria-label','Listen to '+w);sb.setAttribute('aria-label','Say '+w);la.onclick=()=>speak(sp);sb.onclick=()=>tryWord(w,el.querySelector('#say'),sb);el.querySelector('#w').appendChild(r)})},
  el=>{el.innerHTML='<h2 style="margin-bottom:6px">'+C.vocab2Title+'</h2><p class="muted" style="margin:0 0 10px;font-size:.92rem">Listen, then say each word out loud.</p><div id="vl"></div><p class="say" id="say" aria-live="polite"></p>';
   vocab(el.querySelector('#vl'),C.vocab2,el.querySelector('#say'))},
  el=>{const c=C.conversation.map(([who,txt])=>txt);
