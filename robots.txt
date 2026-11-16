@@ -1,6 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /linguabridge-admin.html
 Disallow: /linguabridge-dashboard.html
 Disallow: /linguabridge-lesson
 
