@@ -129,3 +129,13 @@ input[type=text],input[type=password],input[type=email],input:not([type]),select
 .vocab .ph{width:84px!important;height:84px!important;background:#fff;border-radius:50%;box-shadow:0 4px 0 rgba(0,0,0,.1)}
 .vocab .ph svg,.vocab .ph .lbe{width:58px!important;height:58px!important}
 .vocab .mini .lbe,.vocab .mini svg{width:20px!important;height:20px!important;display:inline-block;vertical-align:middle}
+/* badges */
+.badge-stage{position:relative;width:260px;height:260px;margin:4px auto 8px!important;display:grid;place-items:center;border-radius:50%;
+ background:radial-gradient(circle,#fff 0 38%,transparent 39%),conic-gradient(from 0deg,#FFD21F,#FF7A59,#FF5FA2,#8B6BFF,#2DB7FF,#2BD4A0,#FFD21F);animation:pop .7s ease-out,lbSpin 0s}
+.badge-stage::before{content:"";position:absolute;inset:14px;border-radius:50%;background:#fff}
+.badge-stage .lbbadge{position:relative;z-index:1;animation:lbBob 3s ease-in-out infinite;filter:drop-shadow(0 6px 0 rgba(0,0,0,.12))}
+.lbbadge{filter:drop-shadow(0 6px 0 rgba(0,0,0,.14))!important;transition:transform .2s}
+.shelf figure:hover .lbbadge{transform:scale(1.08) rotate(-3deg)}
+#bname{font-size:1.9rem!important;color:#0B3B6B}
+#bsub{display:inline-block;background:#FFD21F;color:#0B3B6B!important;font-weight:700;padding:6px 18px;border-radius:999px;box-shadow:0 4px 0 #D99A00;font-size:1rem!important}
+@media(max-width:420px){.badge-stage{width:230px;height:230px}}
