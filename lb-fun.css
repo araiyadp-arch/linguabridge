@@ -184,3 +184,16 @@ a.fun-btn:focus-visible,.nav a:focus-visible{outline:4px solid #8B6BFF}
 
 /* Feature cards on the home page: words only, no icons (founder request 2026-11-16) */
 .fc .fc-top{display:none!important}
+
+/* HOME v3 (2026-11-16): no more white blocks; everything bright and playful */
+.nav{background:linear-gradient(90deg,#FFF1B8 0%,#FFD9EA 38%,#D8EEFF 70%,#E4DAFF 100%)!important;border-bottom:0!important}
+.fun-wrap{background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.55) 0 7px,transparent 8px) 0 0/90px 90px,radial-gradient(circle at 62% 70%,rgba(255,255,255,.5) 0 5px,transparent 6px) 0 0/70px 70px,linear-gradient(180deg,#B9E6FF 0%,#D5EEFF 38%,#FFF0B5 100%)!important}
+.fun-wrap .fun-wave path{fill:#B9E6FF!important}
+.fun-wrap .fun-in h2{color:#0B3B6B}
+.fun-wrap::before,.fun-wrap::after{content:"";position:absolute;pointer-events:none;border-radius:50%}
+.fun-wrap{position:relative;overflow:hidden}
+.fun-wrap::before{width:230px;height:230px;left:-70px;top:34%;background:rgba(255,95,162,.22)}
+.fun-wrap::after{width:300px;height:300px;right:-90px;bottom:-60px;background:rgba(139,107,255,.2)}
+.fun-in{position:relative;z-index:1}
+.fc{box-shadow:0 8px 0 rgba(11,59,107,.12)!important}
+body{background:linear-gradient(180deg,#FFF6D6,#FFE3F0 40%,#DDF1FF)!important}
