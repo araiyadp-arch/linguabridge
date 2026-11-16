@@ -88,3 +88,85 @@
 .fun-float.top .f7{right:2%;top:310px}
 .fun-diff h2{font-family:var(--font-head);font-size:clamp(1.9rem,4vw,2.7rem);color:var(--navy);margin:0 0 34px;line-height:1.15}
 @media(max-width:1100px){.fun-float.top{display:none}}
+
+/* ================= KID THEME v2: bright, rainbow, bouncy ================= */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
+:root{--font-head:'Fredoka','Lexend',sans-serif;--font-body:'Fredoka','Lexend',sans-serif;--pink:#FF5FA2;--mint:#2BD4A0;--sunny:#FFD21F;--sky2:#2DB7FF}
+body{font-family:'Fredoka','Lexend',sans-serif!important;font-size:1.04rem;
+ background-color:#FFFBEF!important;
+ background-image:radial-gradient(circle,#FFD9E8 2.5px,transparent 3px),radial-gradient(circle,#CFEFFF 2.5px,transparent 3px);
+ background-size:46px 46px,46px 46px;background-position:0 0,23px 23px}
+h1,h2,h3,.fun-in h2,.founder h2,.f-pull,.fc h3,.fs-list h3,.mv h2{font-family:'Fredoka','Lexend',sans-serif!important;font-weight:700!important}
+.hero h1{font-size:clamp(2.6rem,6.4vw,4.6rem)!important;line-height:1.05!important;letter-spacing:-.01em}
+.hero h1 .script,.fun-in h2 .script{font-family:'Lobster',cursive!important;font-weight:400!important}
+.hero-sub,.f-tag,.founder-sign,.f-name{font-family:'Lobster',cursive!important;font-style:normal!important}
+/* rainbow ribbon */
+.nav{background:rgba(255,255,255,.95)!important;border-bottom:0!important;position:sticky}
+.nav::after{content:"";display:block;height:7px;background:linear-gradient(90deg,#FF5FA2 0 16.6%,#FF7A59 0 33.3%,#FFD21F 0 50%,#2BD4A0 0 66.6%,#2DB7FF 0 83.3%,#8B6BFF 0)}
+.nav-links a:not(.btn){font-weight:600;font-size:1.02rem;border-radius:999px;padding:7px 14px!important;border-bottom:0!important;transition:transform .15s,background .15s}
+.nav-links a:nth-child(1):hover{background:#FFE0EC}.nav-links a:nth-child(2):hover{background:#FFE9D6}.nav-links a:nth-child(3):hover{background:#FFF3B8}
+.nav-links a:nth-child(4):hover{background:#CFF7E8}.nav-links a:nth-child(5):hover{background:#D6EFFF}.nav-links a:nth-child(6):hover{background:#E6DEFF}
+.nav-links a:not(.btn):hover{transform:translateY(-2px) rotate(-2deg)}
+.nav-links .nav-signup{background:var(--sunny);color:var(--navy)!important;box-shadow:0 4px 0 #E0A800}
+.btn-primary{background:linear-gradient(180deg,#3DDC97,#12A15A)!important;box-shadow:0 5px 0 #0C7A41!important;font-weight:700}
+.logo-mark{animation:lbWig 5s ease-in-out infinite}
+@keyframes lbWig{0%,90%,100%{transform:rotate(0)}93%{transform:rotate(-5deg)}96%{transform:rotate(5deg)}}
+/* hero */
+.hero{background:radial-gradient(circle at 12% 18%,#FFF0A8 0 70px,transparent 71px),linear-gradient(180deg,#7FD3FF 0%,#B8E8FF 45%,#E4F7FF 80%,#FFF4C9 100%)!important;position:relative;overflow:hidden;padding-bottom:90px!important}
+.hero::before{content:"☁";position:absolute;font-size:7rem;color:#fff;opacity:.9;left:48%;top:18px;animation:lbCloud 24s linear infinite;pointer-events:none}
+.hero::after{content:"☁";position:absolute;font-size:5rem;color:#fff;opacity:.8;left:-8%;top:150px;animation:lbCloud 34s linear infinite;animation-delay:-12s;pointer-events:none}
+@keyframes lbCloud{from{transform:translateX(-10vw)}to{transform:translateX(110vw)}}
+.eyebrow{display:inline-block;background:var(--pink);color:#fff!important;padding:7px 18px;border-radius:999px;letter-spacing:.06em!important;font-weight:700!important;box-shadow:0 4px 0 #D23A80;transform:rotate(-2deg)}
+.hero h1 .script{color:var(--pink)!important;text-shadow:3px 3px 0 #fff,6px 6px 0 #FFD21F!important}
+.hero-sub{color:#0B6FAE!important;font-size:1.7rem!important}
+.hero-copy{font-size:1.2rem!important;color:#1F3D5C!important;font-weight:500}
+.fun-go{background:linear-gradient(180deg,#FF8FB8,var(--pink))!important;box-shadow:0 6px 0 #D23A80!important}
+#heroSignup{background:linear-gradient(180deg,#FFE15C,#FFC21F)!important;color:var(--navy)!important;box-shadow:0 6px 0 #D99A00!important}
+.fun-alt{border-color:#8B6BFF!important;color:#5A3FD0!important;box-shadow:0 6px 0 #C9BCFF!important}
+.hero-cta .private-note{flex-basis:auto!important;width:fit-content}
+.private-note{background:#fff;display:inline-block;padding:6px 16px;border-radius:999px;font-weight:600;color:#0B6FAE!important}
+.fun-float i{box-shadow:0 6px 0 rgba(0,0,0,.12)}
+.f1{background:var(--pink)!important}.f3{background:var(--mint)!important}
+#bridgeMascot{animation:lbBob 3.2s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes lbBob{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-12px) rotate(1.5deg)}}
+.speech-bubble{background:#FFF8C2!important;border:3px solid #FFD21F;font-weight:700;font-size:1rem!important}
+/* founder */
+.founder{background:linear-gradient(180deg,#FFF4C9 0%,#FFE6F1 100%)!important;position:relative}
+.f-frame::before{border:5px dashed var(--pink)!important}
+.f-frame img{border:8px solid #fff!important;box-shadow:0 0 0 5px var(--sunny),0 18px 30px rgba(255,95,162,.3)!important}
+.f-tag{background:var(--sunny)!important;color:var(--navy)!important;box-shadow:0 5px 0 #D99A00!important}
+.founder .section-label{display:inline-block;background:#8B6BFF;color:#fff!important;padding:5px 16px;border-radius:999px;font-style:normal!important;font-weight:600;font-size:.9rem}
+.founder h2{color:#0B3B6B!important;font-size:2.4rem!important}
+.f-pull{color:#12A15A!important;border-left:6px solid var(--pink)!important;background:#fff;border-radius:0 22px 22px 0;padding:14px 18px!important;box-shadow:0 5px 0 #FFD0E3}
+.f-note p{color:#33405A!important;font-size:1.12rem!important}
+.founder::before{background:#FFD21F!important;opacity:.35!important}.founder::after{background:#2DB7FF!important;opacity:.28!important}
+/* feature cards in rainbow */
+.fun-wrap{background:#fff!important;background-image:radial-gradient(circle,#FFE9A6 3px,transparent 3.5px);background-size:40px 40px}
+.fc{border:4px solid #fff;box-shadow:0 8px 0 rgba(0,0,0,.12)!important;border-radius:30px!important}
+.fc:nth-child(1){background:#D6F0FF!important}.fc:nth-child(2){background:#FFE4D2!important}.fc:nth-child(3){background:#E7DEFF!important}.fc:nth-child(4){background:#D3F6E4!important}
+.fc:hover{transform:translateY(-10px) rotate(-2deg) scale(1.03)!important}
+.fc-ico{border-radius:50%!important;width:84px!important;height:84px!important;animation:lbBob 3s ease-in-out infinite}
+.fc:nth-child(2) .fc-ico{animation-delay:-.7s}.fc:nth-child(3) .fc-ico{animation-delay:-1.4s}.fc:nth-child(4) .fc-ico{animation-delay:-2.1s}
+.fc p{color:#33405A!important;font-weight:500}
+.fun-kicker{background:var(--sunny);color:var(--navy)!important;display:inline-block;padding:6px 18px;border-radius:999px;box-shadow:0 4px 0 #D99A00;transform:rotate(-1.5deg)}
+.fun-in h2{font-size:clamp(2.1rem,4.5vw,3.1rem)!important}
+.fun-in h2 .script{color:var(--pink)!important}
+/* steps */
+.fun-steps{background:linear-gradient(180deg,#FFF4C9,#FFE1EE)!important}
+.fs-list li{border:4px solid #fff;box-shadow:0 7px 0 rgba(0,0,0,.1)!important;border-radius:28px!important}
+.fs-list li:nth-child(1){background:#D6F0FF}.fs-list li:nth-child(2){background:#FFE4D2}.fs-list li:nth-child(3){background:#D3F6E4}
+.fs-n{width:56px!important;height:56px!important;font-size:1.7rem!important;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.fs-list li:hover .fs-n{animation:lbWig .6s}
+/* footer */
+footer{background:linear-gradient(180deg,#0B3B6B,#08294B)!important;border-top:8px solid transparent;border-image:linear-gradient(90deg,#FF5FA2,#FF7A59,#FFD21F,#2BD4A0,#2DB7FF,#8B6BFF) 1}
+.footer-slogan{font-family:'Lobster',cursive!important;color:#FFD21F!important;font-size:1.4rem}
+/* other pages */
+.fun-page{background-color:#FFFBEF!important;background-image:linear-gradient(180deg,#9ADCFF 0,#D5F1FF 340px,rgba(255,251,239,0) 700px),radial-gradient(circle,#FFD9E8 2.5px,transparent 3px)!important;background-size:100% 100%,46px 46px!important}
+.mv{border:4px solid #fff;border-radius:34px!important}.mv.m{background:linear-gradient(135deg,#2DB7FF,#0B8FD6)!important}.mv.v{background:linear-gradient(135deg,#FF7AB5,#D84A92)!important}
+.fun-founder{border:4px solid #fff;box-shadow:0 8px 0 #FFD0E3!important}
+.fun-end{background:linear-gradient(180deg,#FFFBEF,#FFE1EE)!important}
+.try-card{border-radius:30px!important}
+a.fun-btn:focus-visible,.nav a:focus-visible{outline:4px solid #8B6BFF}
+@media(prefers-reduced-motion:reduce){.hero::before,.hero::after,#bridgeMascot,.fc-ico,.logo-mark{animation:none!important}}
+@media(max-width:600px){.hero h1{font-size:2.5rem!important}.hero::after{display:none}.hero-sub{font-size:1.4rem!important}}
+.fun-page .eyebrow,.eyebrow{color:#fff!important}
