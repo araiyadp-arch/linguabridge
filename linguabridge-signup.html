@@ -506,6 +506,11 @@
         <input type="password" id="signup-password-confirm" name="signup-password-confirm" autocomplete="new-password" minlength="8" required>
       </div>
 
+      <div style="display:flex; gap:10px; align-items:flex-start; margin:0 0 18px; text-align:left;">
+        <input type="checkbox" id="signup-agree" style="width:22px; height:22px; margin-top:2px; flex:0 0 22px;">
+        <label for="signup-agree" style="font-size:0.92rem; line-height:1.5; color:#4A5B70; font-weight:500;">I am 13 or older, or a parent or guardian is helping me and agrees to the <a href="linguabridge-privacy.html" target="_blank" rel="noopener">Privacy Notice</a>.</label>
+      </div>
+
       <p id="signup-error" style="display:none; color:#B3261E; font-size:0.9rem; font-weight:600; margin:-8px 0 16px;"></p>
 
       <button type="submit" class="btn btn-primary login-submit">Create Account</button>
@@ -564,6 +569,11 @@
       const email = document.getElementById('signup-email').value.trim();
       if (!/^[A-Za-z0-9]{3,20}$/.test(email)) {
         errorMsg.textContent = 'Username must be 3 to 20 letters or numbers, no spaces or symbols.';
+        errorMsg.style.display = 'block';
+        return;
+      }
+      if (!document.getElementById('signup-agree').checked) {
+        errorMsg.textContent = 'Please tick the box. If you are under 13, ask a parent or guardian to help you.';
         errorMsg.style.display = 'block';
         return;
       }
