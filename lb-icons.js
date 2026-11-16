@@ -456,6 +456,16 @@ ICONS['🆘']=r(2,10,44,28,R,6)+t(24,31,'SOS',16,W);
  ICONS['🙏']=kid({s:.95,cx:24,y:2,open:0,front:arm('M16 42l8-7 8 7',S)+c(24,38,4.6,S)});
  // 💪 strong kid
  ICONS['💪']=kid({s:.9,cx:21,y:4,open:1,shirt:R,back:arm('M33 42q9 2 9-7',S)+arm('M42 35q-1-9-8-8',S)+c(41,32,6,S)});
+ // 2026-11-15 clarity fixes (founder: unclear pictures in "What is it?")
+ // Goodbye = a kid waving next to a door (leaving). Key is unused anywhere else; lb-content.js points Goodbye at it.
+ ICONS['🙌']=kid({s:.78,cx:14,y:8,open:1,back:arm('M33 41q9-3 8-16',S)+hand(41,22,S,5)})+sp(28,8)
+  +r(33,5,13,39,N,2)+r(35.5,9,8,13,'#B98B5A',1,1)+r(35.5,26,8,14,'#B98B5A',1,1)+c(36.8,31,1.6,Y);
+ // Can I have...? = a kid holding a hand out, asking
+ ICONS['🤲']=kid({s:.9,cx:21,y:4,open:1,back:arm('M33 42q10 0 11-9',S)+hand(44,31,S,5.4)})+l('M40 24q4-3 6 0','#F5A03A',2.4);
+ // Sour = a lemon (oval with two little tips, a leaf and a shine)
+ ICONS['🍋']=p('M2 26q2-3 5-2 4-11 17-11t17 11q3-1 5 2-2 3-5 2-4 11-17 11T7 28q-3 1-5-2z',Y)+p('M24 13q1-7 9-8-1 7-9 8z',G)+l('M15 20q3-4 9-4','#FFF6B0',2.6);
+ // numbers 0-9 (keycap digits): a blue tile with the number, like the 10 tile
+ for(let d=0;d<=9;d++)ICONS[String(d)]=r(4,6,40,36,B,6)+t(24,34,String(d),26,W);
 })();
 /* ---------- lookup + DOM sweep ---------- */
 const FALL=star(24,25,19,Y);
@@ -464,7 +474,7 @@ function inner(em){const k=norm(em);if(ICONS[k])return ICONS[k];
   const parts=[...k].filter(x=>x!=='‍');for(const q of parts){if(ICONS[q])return ICONS[q]}return FALL}
 window.LB_iconInner=inner;
 window.LB_iconSVG=function(em,cls){return '<svg class="'+(cls||'lbico')+'" viewBox="0 0 48 48" width="1em" height="1em" aria-hidden="true" focusable="false">'+inner(em)+'</svg>'};
-const RX=/(?:\p{Regional_Indicator}{2}|(?![©®™‼⁉ℹ↔↕↖-↙↩↪])[\p{Extended_Pictographic}✓✕↻])(?:[︎️\u{1F3FB}-\u{1F3FF}⃣]|‍\p{Extended_Pictographic})*/gu;
+const RX=/(?:\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|(?![©®™‼⁉ℹ↔↕↖-↙↩↪])[\p{Extended_Pictographic}✓✕↻])(?:[︎️\u{1F3FB}-\u{1F3FF}⃣]|‍\p{Extended_Pictographic})*/gu;
 // strip emoji from non-DOM-text places (titles, placeholders)
 window.LB_noEmoji=s=>String(s).replace(RX,'').replace(/\s{2,}/g,' ').trim();
 const st=document.createElement('style');
