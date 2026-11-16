@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow"><title>Sound test - LinguaBridge</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;max-width:640px;margin:0 auto;padding:18px;color:#0B3B6B;background:#F4F9FF}
+h1{font-size:1.5rem;margin:6px 0 4px}p{line-height:1.5}
+button{font-size:1.1rem;font-weight:700;padding:14px 18px;margin:6px 6px 6px 0;border-radius:14px;border:0;background:#159FE8;color:#fff;cursor:pointer}
+.row{background:#fff;border-radius:16px;padding:12px 14px;margin:12px 0;box-shadow:0 2px 8px rgba(11,59,107,.1)}
+pre{white-space:pre-wrap;word-break:break-word;background:#0B3B6B;color:#E7F3FF;padding:12px;border-radius:12px;font-size:.9rem;min-height:40px}
+.ok{color:#117a3d;font-weight:700}.bad{color:#B3261E;font-weight:700}
+</style></head><body>
+<h1>Sound test</h1>
+<p>Turn the volume up and the phone's silent switch off. Tap each button in order, then take a <strong>screenshot of the whole page</strong> and send it to Araiya.</p>
+
+<div class="row"><strong>1. Plain beep</strong> (does this device make any sound?)<br><button id="b1">Play beep</button><div id="r1"></div></div>
+<div class="row"><strong>2. Download the voice</strong> (does the voice server answer?)<br><button id="b2">Get voice</button><div id="r2"></div></div>
+<div class="row"><strong>3. Play the voice</strong> (the simple way)<br><button id="b3">Play voice</button><div id="r3"></div></div>
+<div class="row"><strong>4. Play the voice</strong> (the way the lessons do it)<br><button id="b4">Play like lessons</button><div id="r4"></div></div>
+<pre id="log">Device: </pre>
+
+<script>
+const log=m=>{const l=document.getElementById('log');l.textContent+='\n'+m};
+const show=(id,ok,msg)=>{document.getElementById(id).innerHTML='<span class="'+(ok?'ok':'bad')+'">'+(ok?'OK: ':'PROBLEM: ')+msg+'</span>'};
+document.getElementById('log').textContent='Device: '+navigator.userAgent+'\nAudioSession: '+(navigator.audioSession?navigator.audioSession.type:'not supported')+'\nTime: '+new Date().toISOString();
+let blob=null;
+const URLV='https://api.lingua-bridge.us/api/tts?engine=aura2&voice=girl&speaker=callista&text='+encodeURIComponent('Hello! I am Bridge.');
+document.getElementById('b1').onclick=()=>{try{const C=window.AudioContext||window.webkitAudioContext;const c=new C();const o=c.createOscillator(),g=c.createGain();o.frequency.value=523;g.gain.value=.25;o.connect(g);g.connect(c.destination);o.start();setTimeout(()=>{o.stop();c.close()},700);show('r1',true,'beep sent. Did you hear it? (state: '+c.state+')');log('beep state='+c.state)}catch(e){show('r1',false,e.name+': '+e.message)}};
+document.getElementById('b2').onclick=async()=>{try{const r=await fetch(URLV,{credentials:'include'});log('voice HTTP '+r.status+' type='+r.headers.get('content-type'));if(!r.ok){let t='';try{t=await r.text()}catch(e){}show('r2',false,'server said '+r.status+' '+t.slice(0,80));return}blob=await r.blob();show('r2',blob.size>500,'got '+blob.size+' bytes of '+(blob.type||'?'));log('voice bytes='+blob.size+' blobtype='+blob.type)}catch(e){show('r2',false,'could not reach the voice server ('+e.name+': '+e.message+')');log('fetch error '+e)}};
+document.getElementById('b3').onclick=async()=>{if(!blob){show('r3',false,'Do step 2 first');return}try{const a=new Audio(URL.createObjectURL(blob));a.onended=()=>log('simple: ended');a.onerror=()=>log('simple: error code='+(a.error&&a.error.code));await a.play();show('r3',true,'play() worked. Did you hear Callista say hello?');log('simple: play() ok')}catch(e){show('r3',false,e.name+': '+e.message);log('simple play failed '+e.name+': '+e.message)}};
+let A=null;
+document.getElementById('b4').onclick=async()=>{if(!blob){show('r4',false,'Do step 2 first');return}try{if(!A){A=new Audio();A.preload='auto'}A.pause();A.onended=()=>log('lessons-way: ended');A.onerror=()=>log('lessons-way: error code='+(A.error&&A.error.code));A.src=URL.createObjectURL(blob);await A.play();show('r4',true,'play() worked. Did you hear it?');log('lessons-way: play() ok')}catch(e){show('r4',false,e.name+': '+e.message);log('lessons-way failed '+e.name+': '+e.message)}};
+</script></body></html>
