@@ -185,6 +185,8 @@ let _ctx=null;
 function LB_ctx(){if(!_ctx){const C=window.AudioContext||window.webkitAudioContext;if(C){try{_ctx=new C()}catch(e){}}}return _ctx}
 (function(){function wake(){const c=LB_ctx();if(!c)return;try{if(c.state!=='running'){const r=c.resume();if(r&&r.catch)r.catch(()=>{})}const bf=c.createBuffer(1,1,22050),sr=c.createBufferSource();sr.buffer=bf;sr.connect(c.destination);sr.start(0);if(c.state==='running')['pointerdown','touchstart','touchend','click','keydown'].forEach(e=>document.removeEventListener(e,wake,true))}catch(e){}}
  ['pointerdown','touchstart','touchend','click','keydown'].forEach(e=>document.addEventListener(e,wake,true))})();
+/* 2026-11-16: phones will not listen to the microphone while the page's sound channel is open. Called right before Speak: stop all voices and pause the channel. */
+window.LB_micPrep=function(){try{stopAudio()}catch(e){}try{if(_ctx&&_ctx.state==='running'&&_ctx.suspend)_ctx.suspend()}catch(e){}};
 function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
  if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||!LB_ttsText(t,mode).replace(/[.!?,\s]/g,'')){fb();return}
  const url=LB_ttsUrl(t,mode);LB_vc('Tap received: '+(_ttsDone.has(url)?'line ready':'getting the voice line...'));
@@ -571,6 +573,7 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
           input.focus();
           return;
         }
+        try { LB_micPrep(); } catch (e) {}
         const rec = new SR();
         rec.lang = 'en-US';
         micBtn.classList.add('listening');

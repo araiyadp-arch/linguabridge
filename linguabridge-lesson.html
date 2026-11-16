@@ -130,7 +130,7 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 <div class="actions" style="margin-top:0"><button class="btn btn-secondary" id="back">Back</button><button class="btn btn-primary" id="next">Next</button></div>
 
 </div></main>
-<script src="lb-core.js?v=20261116l"></script>
+<script src="lb-core.js?v=20261116m"></script>
 <script src="lb-content.js?v=20261116b"></script>
 <script src="lb-icons.js"></script>
 <script>
@@ -173,6 +173,7 @@ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const PRAISE=["🌟 Wow, that sounded great!","🎉 Yes! I heard you loud and clear!","👏 Great speaking! You've got it!","😊 Super! That was just right!"];
 function tryWord(key,say,btn){
  try{stopAudio()}catch(e){}
+ try{LB_micPrep()}catch(e){}
  if(!SR){say.textContent="😊 Your device can't listen just yet, but you can still practice! Listen to me, then say it out loud like you're talking to a friend.";return}
  const rec=new SR();rec.lang='en-US';say.textContent="🎤 I'm listening! Say “"+key+"” whenever you're ready.";
  if(btn)btn.classList.add('listening');
@@ -185,8 +186,10 @@ function tryWord(key,say,btn){
   if(okSay(raw)){say.textContent=PRAISE[Math.floor(Math.random()*PRAISE.length)]}
   else{say.textContent="Ooh, I heard “"+raw+"”. That was a brave try! 💛 Let's say it together: “"+key+"”. Tap Speak when you're ready to try again.";bridgeSpeak(key,{mode:'pronunciation'})}};
  let errd=0;rec.onerror=e=>{errd=1;stop();say.textContent=e.error==='not-allowed'?"I can't use the microphone right now, and that's okay! Listen to me, then say it out loud on your own. 😊":"I didn't catch that, but that's okay! Tap Speak and we'll try again. No rush! 😊"};
- rec.onend=()=>{stop();if(!got&&!errd)say.textContent="I didn't hear anything. Tap Speak and say it a little louder. No rush! \ud83d\ude0a"};
- try{rec.start()}catch(x){stop()}}
+ let t0=Date.now(),retried=0;
+ rec.onend=()=>{if(!got&&!errd&&!retried&&Date.now()-t0<1800){retried=1;setTimeout(()=>{try{rec.start();t0=Date.now()}catch(x){stop()}},300);return}stop();if(!got&&!errd)say.textContent="I didn't hear anything. Tap Speak and say it a little louder. No rush! \ud83d\ude0a"};
+ /* 2026-11-16: on phones the microphone sometimes closes before the child can speak; wait a moment, then listen again once automatically */
+ setTimeout(()=>{try{rec.start();t0=Date.now()}catch(x){stop()}},350)}
 function vocab(el,list,say){list.forEach(([w,hint,emoji])=>{const r=document.createElement('div');r.className='vocab';
  r.innerHTML='<span class="ph" style="font-size:1.8rem" aria-hidden="true">'+emoji+'</span><span class="w">'+w+'<span class="h">'+hint+'</span></span><span class="btns"><button class="mini">🔊 Listen</button><button class="mini rec">🎤 Speak</button></span>';
  try{LB_photoInto(r.querySelector('.ph'),w,hint)}catch(e){}const [a,b]=r.querySelectorAll('button');a.setAttribute('aria-label','Listen to '+w);b.setAttribute('aria-label','Say '+w);
