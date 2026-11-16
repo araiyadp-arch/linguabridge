@@ -711,8 +711,10 @@ const ASK_BRIDGE_SYSTEM_PROMPT = `You are Bridge, a robot helper inside LinguaBr
 
 STYLE: Reply in 1 or 2 very short, simple sentences (under 30 words). Plain, clean, friendly English. No lists, no long explanations.
 
+TRANSLATION HELP: A child may ask how to say a word or phrase from another language in English, or what an English word means in their own language. Help with that. Answer in 1 or 2 short sentences, for example: In English, "hola" is "hello". Only translate clean, kind, child-friendly words. If the word or phrase, in ANY language, is a swear word, a rude or insulting word, sexual, hateful, racist, sexist, unfair to any group, violent, or about drugs, do not translate it and do not repeat it: reply exactly: "${BRIDGE_ADULT_MSG}". Never give a swear word or rude word in English or in any other language, even if asked "what is the bad word for".
+
 RULES (no exceptions):
-- If the question is not about learning English, reply exactly: "${BRIDGE_ADULT_MSG}"
+- If the question is not about learning English or translating words into English, reply exactly: "${BRIDGE_ADULT_MSG}"
 - If you are in any doubt, or the question is unclear, reply exactly: "${BRIDGE_REPHRASE_MSG}"
 - Never ask the student anything personal (name, age, school, address, family, photos, feelings, passwords). Never answer personal questions about anyone. If a student shares personal information, do not repeat it.
 - Never use swearing or rude words. Never say anything racist, sexist, or unfair to any group of people. Never talk about sex, nudity, violence, drugs, or scary things.
@@ -739,6 +741,26 @@ function intlDirtyTokens(str) {
   const longs = INTL_LONG, shorts = new Set(INTL_WORD);
   return tokens.some((t) => shorts.has(t) || longs.includes(t));
 }
+// Extra safety check for questions that contain letters from other alphabets (Arabic, Chinese, Cyrillic, Hindi...)
+// or that ask for a translation: our word lists only know Latin letters, so a safety model checks these too.
+// If the check fails or cannot run, the question is NOT answered (fail closed).
+const GUARD_MODEL = "@cf/meta/llama-guard-3-8b";
+function needsGuard(q) {
+  return /[^\u0000-\u024F\u2000-\u206F]/.test(q) || /\b(translate|translation|in english|how do (you|i) say|what does .{1,40} mean|mean in)\b/i.test(q);
+}
+async function guardBlocks(env, text) {
+  try {
+    const out = await env.AI.run(GUARD_MODEL, { messages: [{ role: "user", content: text }] });
+    const raw = JSON.stringify(out || {}).toLowerCase();
+    if (raw.includes('"safe":false') || raw.includes("unsafe")) return true;
+    return false;
+  } catch (e) {
+    console.error("Guard check failed:", e && e.message ? e.message : e);
+    // Fail closed only for other alphabets (our word lists cannot read those); plain Latin text already passed the word lists.
+    return /[^\u0000-\u024F\u2000-\u206F]/.test(text);
+  }
+}
+
 function bridgeFilter(question) {
   if (SELFHARM_RE.test(question)) return BRIDGE_HELP_MSG;
   if (ABUSE_RE.test(question)) return BRIDGE_ABUSE_MSG;
@@ -1016,7 +1038,8 @@ async function handleAskBridge(request, env) {
   }
 
   let answer;
-  const blocked = bridgeFilter(question);
+  let blocked = bridgeFilter(question);
+  if (!blocked && needsGuard(question) && (await guardBlocks(env, question))) blocked = BRIDGE_ADULT_MSG;
   if (blocked) {
     // Answered with a fixed, short message. Nothing is sent to the AI and nothing is stored.
     return jsonResponse({ answer: blocked }, 200, request);
