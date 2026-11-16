@@ -1046,6 +1046,14 @@ async function handleAskBridge(request, env) {
     // Answered with a fixed, short message. Nothing is sent to the AI and nothing is stored.
     return jsonResponse({ answer: blocked }, 200, request);
   }
+  // Greetings and thanks are answered without the AI, so they always work (even if the daily AI limit is used up).
+  const gq = question.toLowerCase().replace(/[^a-z ]/g, "").replace(/(.)\1{2,}/g, "$1$1").trim();
+  if (/^(hi+|hello+|hey+|hiya|yo|good (morning|afternoon|evening)|howdy)( bridge+e*)?( there)?$/.test(gq.replace(/ee+$/, "e").replace(/(bridg)e+/, "$1e"))) {
+    return jsonResponse({ answer: "Hi! I am Bridge. Ask me about an English word, or how to say a word from your language in English!" }, 200, request);
+  }
+  if (/^(thanks?|thank you|thx|ty)( bridge+e*)?( so much)?$/.test(gq)) {
+    return jsonResponse({ answer: "You are welcome! Keep learning, you are doing great!" }, 200, request);
+  }
   if (isTimeQuestion(question)) {
     // Answered deterministically (see the world-clock section above) —
     // the AI model has no real clock, so letting it guess would just
