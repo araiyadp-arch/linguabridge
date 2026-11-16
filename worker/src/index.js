@@ -1179,6 +1179,21 @@ async function handleTts(request, env, url, ctx) {
   const cacheKey = new Request("https://tts.cache.lingua-bridge.us/" + engine + "/" + speaker + "/" + encodeURIComponent(text));
   const cache = caches.default;
   let audio = await cache.match(cacheKey);
+  // Permanent copy in D1 (2026-11-15): every line is made by the AI only ONCE ever, then reused for every child.
+  // This protects Cloudflare's free daily AI limit, which Ask Bridge shares with the voices.
+  const dbKey = engine + "/" + speaker + "/" + text;
+  if (!audio) {
+    try {
+      const row = await env.DB.prepare("SELECT a FROM tts_cache WHERE k = ?").bind(dbKey).first();
+      if (row && row.a) {
+        const bin = atob(row.a);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        audio = new Response(bytes, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
+        ctx.waitUntil(cache.put(cacheKey, audio.clone()));
+      }
+    } catch (e) {}
+  }
   if (!audio) {
     try {
       let buf;
@@ -1197,6 +1212,12 @@ async function handleTts(request, env, url, ctx) {
       if (!buf.byteLength) throw new Error("empty");
       audio = new Response(buf, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
       ctx.waitUntil(cache.put(cacheKey, audio.clone()));
+      if (buf.byteLength < 1500000) {
+        let b64 = "";
+        const u8 = new Uint8Array(buf);
+        for (let i = 0; i < u8.length; i += 8192) b64 += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+        ctx.waitUntil(env.DB.prepare("INSERT OR REPLACE INTO tts_cache (k, a, created_at) VALUES (?, ?, ?)").bind(dbKey, btoa(b64), Date.now()).run().catch(() => {}));
+      }
     } catch (e) {
       return jsonResponse({ error: "Voice unavailable." }, 503, request);
     }
