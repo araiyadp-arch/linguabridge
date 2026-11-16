@@ -155,8 +155,9 @@ if(typeof window.LB_STRICT_VOICE==='undefined')window.LB_STRICT_VOICE=true;
    (2) lines are fetched ahead of time (LB_ttsPrefetch) so the next line is ready when the last one ends -> no breaks. */
 let _AU=null;
 function LB_au(){if(!_AU){_AU=new Audio();_AU.preload='auto';try{_AU.setAttribute('playsinline','')}catch(e){}}return _AU}
-(function(){const SIL='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=';let done=false;
- function unlock(){if(done)return;const a=LB_au();try{a.src=SIL;const r=a.play();if(r&&r.then)r.then(()=>{a.pause();done=true;ev.forEach(e=>document.removeEventListener(e,unlock,true))}).catch(()=>{})}catch(e){}}
+(function(){let SILURL=null,done=false;
+ function silentWav(){const n=800,b=new ArrayBuffer(44+n*2),v=new DataView(b);const w=(o,t)=>{for(let k=0;k<t.length;k++)v.setUint8(o+k,t.charCodeAt(k))};w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,16000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);return URL.createObjectURL(new Blob([b],{type:'audio/wav'}))}
+ function unlock(){if(done)return;const a=LB_au();if(!a.paused&&!a.ended&&String(a.src).indexOf('blob:')===0&&a.currentTime>0)return;try{if(!SILURL)SILURL=silentWav();a.src=SILURL;const r=a.play();if(r&&r.then)r.then(()=>{if(String(a.src)===SILURL)a.pause();done=true;ev.forEach(e=>document.removeEventListener(e,unlock,true))}).catch(()=>{})}catch(e){}}
  const ev=['pointerdown','touchstart','touchend','click','keydown'];ev.forEach(e=>document.addEventListener(e,unlock,true))})();
 const _ttsBlobs=new Map();
 function LB_ttsUrl(t,mode){return 'https://api.lingua-bridge.us/api/tts?engine=aura2&voice='+(LB_voiceId()==='girl'?'girl':'boy')+'&speaker='+LB_voice4()+'&text='+encodeURIComponent(LB_ttsText(t,mode).slice(0,220))}
@@ -172,7 +173,9 @@ function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
   if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');const a=LB_au();try{a.pause()}catch(e){}a.onended=null;a.onerror=null;a.src=URL.createObjectURL(b);_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
   a.playbackRate=(mode==='pronunciation'?0.9:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
   let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&(tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb()};
-  a.onended=()=>{if(done)done()};a.onerror=f;const r=a.play();if(r&&r.catch)r.catch(f)
+  const objUrl=a.src;let fresh=false;
+  const viaFresh=()=>{if(fresh||my!==_tok)return;fresh=true;try{const n=new Audio(objUrl);_cur=n;n.volume=a.volume;n.playbackRate=a.playbackRate;try{n.preservesPitch=true;n.webkitPreservesPitch=true}catch(e){}n.onended=()=>{if(done)done()};n.onerror=f;const q=n.play();if(q&&q.catch)q.catch(f)}catch(e){f()}};
+  a.onended=()=>{if(done)done()};a.onerror=viaFresh;const r=a.play();if(r&&r.catch)r.catch(viaFresh)
  }).catch(()=>{if(my!==_tok)return;if(!window.LB_lastVoiceError)LB_vc('Cloud voice FAILED (no connection) - using backup voice',true);if(window.LB_STRICT_VOICE){if((tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
 function LB_chunkText(t,max){const x=String(t).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();if(x.length<=max)return [x];const parts=x.match(/[^.!?]+[.!?]*\s*/g)||[x],out=[];let cur='';parts.forEach(q=>{if((cur+q).length>max&&cur){out.push(cur.trim());cur=q}else cur+=q});if(cur.trim())out.push(cur.trim());return out}
 function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational';
