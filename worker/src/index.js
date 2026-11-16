@@ -519,7 +519,7 @@ async function handleAdminOverview(request, env) {
      WHERE u.role = 'parent' AND u.status = 'pending' ORDER BY u.created_at ASC LIMIT 200`
   ).all();
   const approved = await env.DB.prepare(
-    `SELECT u.id, u.email, u.status, u.created_at,
+    `SELECT u.id, COALESCE(u.email, u.username) as email, u.status, u.created_at,
             (SELECT COUNT(*) FROM users c WHERE c.parent_id = u.id) as children
      FROM users u WHERE u.role = 'parent' AND u.status != 'pending' ORDER BY u.created_at DESC LIMIT 200`
   ).all();
