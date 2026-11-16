@@ -195,7 +195,17 @@ const s=LB.get();
 const mine=s.completed.filter(c=>c.level===s.level),last0=mine[mine.length-1]||{n:1};
 /* ?n= lets the lesson page open ITS OWN video (2026-11-10); with no ?n= it is the recap of the lesson just finished. */
 const Q=new URLSearchParams(location.search),qn=parseInt(Q.get('n'),10),last=qn>0?{n:qn}:last0;
-const S=(advFor(s.level,last.n).video||[]).filter(x=>!x.dl); /* 2026-11-15: short-story dialogue scenes removed (founder request) */
+const _LC=advFor(s.level,last.n)||{};
+let S=(Array.isArray(_LC.video)?_LC.video:[]).filter(x=>x&&!x.dl); /* 2026-11-15: short-story dialogue scenes removed (founder request) */
+/* 2026-11-15: about 100 lessons have no hand-written video. Build the recap from the lesson's own words so every lesson has one:
+   an opening line, one scene per word (picture + the word + what it means), and a closing line. */
+if(!S.length){
+ const words=[].concat(_LC.vocab1||[],_LC.vocab2||[]).filter(v=>v&&v[0]&&v[2]);const seenW=new Set();
+ S=[{say:"Let's look back at today's lesson!",em:'\u{1F31F}',d:3500}];
+ words.forEach(v=>{const w=String(v[0]).replace(/<[^>]*>/g,'');if(seenW.has(w)||S.length>14)return;seenW.add(w);
+  const hint=String(v[1]||'').replace(/<[^>]*>/g,'').trim().replace(/[.!?]+$/,'');
+  S.push({say:hint?w+'. '+hint+'.':w+'.',em:v[2],wd:w,d:5200})});
+ S.push({say:'Great job today! See you next time!',em:'\u{1F389}',d:3500})}
 if(qn>0){const ct=document.querySelector('.actions .btn-primary');if(ct){ct.textContent='Back to my lesson';ct.href='linguabridge-lesson.html?n='+qn+(Q.get('review')?'&review='+Q.get('review'):'')}const sk=document.querySelector('.actions .btn-secondary');if(sk)sk.style.display='none'}
 if(VIDEO_URL){vid.innerHTML='<video controls playsinline src="'+VIDEO_URL+'"></video>';document.getElementById('ctrls').style.display='none'}
 else{
