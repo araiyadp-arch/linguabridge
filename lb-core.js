@@ -628,9 +628,9 @@ function LB_mountLessonGame(el,lesson,level,onAllDone){
 
 
 /* ---- Voice speed control (2026-11-09): kids pick Slow / Normal / Fast; applies to every spoken voice. ---- */
-/* FOUNDER-LOCKED VOICES (2026-11-15): Apollo, Hermes, Amalthea and Callista (Deepgram Aura-2). The founder loves these four and said they must NEVER be changed. Kids pick one. */
-const LB_VOICES4=[['apollo','Apollo','boy'],['hermes','Hermes','boy'],['amalthea','Amalthea','girl'],['callista','Callista','girl']];
-function LB_voice4(){try{const v=localStorage.getItem('lb_voice4');if(LB_VOICES4.some(x=>x[0]===v))return v;return localStorage.getItem('lb_voice_gender')==='girl'?'amalthea':'apollo'}catch(e){return'apollo'}}
+/* FOUNDER-LOCKED VOICES (2026-11-15): Apollo (boy) and Callista (girl) (Deepgram Aura-2). The founder loves these and said they must NEVER be changed. Kids pick one. */
+const LB_VOICES4=[['apollo','Apollo','boy'],['callista','Callista','girl']]; /* 2026-11-15: founder narrowed the four to two (Apollo, Callista) to save the free daily AI limit */
+function LB_voice4(){try{const v=localStorage.getItem('lb_voice4');if(LB_VOICES4.some(x=>x[0]===v))return v;return localStorage.getItem('lb_voice_gender')==='girl'?'callista':'apollo'}catch(e){return'apollo'}}
 function LB_voiceId(){try{const v=localStorage.getItem('lb_voice4'),h=LB_VOICES4.find(x=>x[0]===v);if(h)return h[2]==='girl'?'girl':'daniel';return localStorage.getItem('lb_voice_gender')==='girl'?'girl':'daniel'}catch(e){return'daniel'}}
 function LB_speed(){try{const v=parseFloat(localStorage.getItem('lb_speed'));return v>=.5&&v<=1.5?v:1}catch(e){return 1}}
 (function(){
