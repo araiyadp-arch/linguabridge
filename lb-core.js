@@ -141,7 +141,7 @@ function LB_clip(t,mode){if(LB_voiceId()!=='girl')return null;const s=slugOf(t);
 const LB_VOICE_LIFT={boy:1,girl:1}; /* 2026-11-15: Normal speed made ~10% slower at the founder's request */
 /* Voice check (2026-11-15): open any page with ?vc=1 once to show a small label saying which voice REALLY played. ?vc=0 hides it. */
 try{const q=new URLSearchParams(location.search).get('vc');if(q==='1')localStorage.setItem('lb_vc','1');if(q==='0')localStorage.removeItem('lb_vc')}catch(e){}
-function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 13px system-ui;color:#fff;max-width:80vw';(document.body||document.documentElement).appendChild(d)}d.style.background=bad?'#c0392b':'#12864A';d.textContent=msg+' | '+((navigator.userAgent.match(/(Edg|Chrome|CriOS|FxiOS|Firefox|Version)\/(\d+)/)||[])[0]||'browser')+(/iPhone|iPad/.test(navigator.userAgent)?' iOS':/Macintosh/.test(navigator.userAgent)?' Mac':'')}catch(e){}}
+function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;window.__vcl=window.__vcl||[];window.__vcl.push(msg);if(window.__vcl.length>7)window.__vcl.shift();let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 12px/1.35 system-ui;color:#fff;max-width:92vw;white-space:pre-wrap';(document.body||document.documentElement).appendChild(d)}d.style.background=(bad||window.__vcbad)?'#c0392b':'#12864A';if(bad)window.__vcbad=true;d.textContent=window.__vcl.map((x,k)=>(k+1)+'. '+x).join('\n')+'\n'+((navigator.userAgent.match(/(Edg|Chrome|CriOS|FxiOS|Firefox|Version)\/(\d+)/)||[])[0]||'browser')+(/iPhone|iPad/.test(navigator.userAgent)?' iOS':/Macintosh/.test(navigator.userAgent)?' Mac':'')}catch(e){}}
 /* Clearer speech (2026-11-15): the voice sometimes ran words together or skipped one. Always end with a full stop; in practice (pronunciation)
    mode put a short pause between words so every word is heard. */
 function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'').replace(/\s+/g,' ').trim();
@@ -178,10 +178,10 @@ function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
  let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&(tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else{LB_vc('Gave up after 3 tries - no sound',true);fb()}};
  /* Backup player: decode the saved line and play it with WebAudio. */
  const viaCtx=(b)=>{const c=LB_ctx();if(!c||!b){LB_vc('No backup sound channel in this browser',true);f();return}
-  const run=()=>{(b.arrayBuffer?b.arrayBuffer():new Response(b).arrayBuffer()).then(ab=>new Promise((ok,no)=>{const p=c.decodeAudioData(ab,ok,no);if(p&&p.catch)p.catch(no)})).then(buf=>{if(my!==_tok)return;LB_vc('Backup player: decoded '+buf.duration.toFixed(1)+'s, sound channel is '+c.state);const s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate;const g=c.createGain();g.gain.value=BRIDGE_VOICE_CONFIG.volume;s.connect(g);g.connect(c.destination);
+  const run=()=>{LB_vc('Backup player: decoding, channel '+c.state);(b.arrayBuffer?b.arrayBuffer():new Response(b).arrayBuffer()).then(ab=>new Promise((ok,no)=>{const p=c.decodeAudioData(ab,ok,no);if(p&&p.catch)p.catch(no)})).then(buf=>{if(my!==_tok)return;LB_vc('Backup player: decoded '+buf.duration.toFixed(1)+'s, sound channel is '+c.state);const s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate;const g=c.createGain();g.gain.value=BRIDGE_VOICE_CONFIG.volume;s.connect(g);g.connect(c.destination);
     const h={onended:null,onerror:null,pause(){try{s.onended=null;s.stop()}catch(e){}}};_cur=h;s.onended=()=>{if(my===_tok&&done)done()};s.start(0);LB_vc('Playing: '+LB_voice4()+' (backup player, channel '+c.state+')')}).catch(e=>{LB_vc('Backup player failed: '+(e&&(e.name||e.message)||'decode error'),true);f()})};
   if(c.state!=='running'){const r=c.resume();if(r&&r.then)r.then(run,run);else run()}else run()};
- const go=(src,b)=>{if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');
+ const go=(src,b)=>{if(my!==_tok)return;LB_vc('Got line ('+(b&&b.size)+' bytes, '+(b&&b.type)+'), starting player 1');
   /* 1) a brand-new audio player started right in the tap: the same method the sound test page uses */
   let tried2=false;
   const second=(why)=>{if(tried2||my!==_tok)return;tried2=true;LB_vc('First player refused ('+(why&&why.name||'error')+'), trying shared player',true);
@@ -189,7 +189,7 @@ function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
    a.playbackRate=rate;try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
    let failed=false;const fail=(w2)=>{if(failed||my!==_tok)return;failed=true;LB_vc('Shared player refused ('+(w2&&w2.name||'error')+'), trying backup player',true);viaCtx(b)};
    a.onended=()=>{if(done)done()};a.onerror=()=>fail();const r=a.play();if(r&&r.catch)r.catch(fail)};
-  try{const n=new Audio(src);_cur=n;n.onended=()=>{if(my===_tok&&done)done()};n.onerror=()=>second();
+  try{const n=new Audio(src);_cur=n;n.onended=()=>{if(my===_tok&&done)done()};n.onerror=()=>second({name:'media error '+(n.error&&n.error.code)+' '+(n.error&&n.error.message||'')});
    const q=n.play();
    const tune=()=>{try{n.volume=BRIDGE_VOICE_CONFIG.volume;n.playbackRate=rate;n.preservesPitch=true;n.webkitPreservesPitch=true}catch(e){}};
    if(q&&q.then)q.then(tune).catch(second);else tune()}catch(e){second(e)}};
