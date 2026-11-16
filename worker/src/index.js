@@ -280,6 +280,9 @@ function formatInvite(code) {
 }
 
 async function handleSignup(request, env) {
+  // Open signup (2026-11-15, founder request): no invite code and no approval step.
+  // A grown-up picks a unique username + password and is logged in right away.
+  // Kept: strong password rule, and a per-device limit so bots cannot mass-create accounts.
   let body;
   try {
     body = await request.json();
@@ -290,56 +293,23 @@ async function handleSignup(request, env) {
   const ip = clientIp(request);
   const ipKey = "signup:ip:" + ip;
   if (await isLocked(env, ipKey)) {
-    return jsonResponse({ error: "Too many tries. Please wait an hour and try again." }, 429, request);
+    return jsonResponse({ error: "Too many new accounts from this device today. Please try again tomorrow." }, 429, request);
   }
 
-  const email = (body.email || "").toString().trim().toLowerCase();
+  const username = (body.username || "").toString().trim();
   const password = (body.password || "").toString();
-  // Stored without the "LB-" prefix and dashes: "LB-ABCD-EFGH" -> "ABCDEFGH"
-  let invite = normalizeInvite(body.invite);
-  if (invite.startsWith("LB") && invite.length === 10) invite = invite.slice(2);
 
-  if (!email || !EMAIL_RE.test(email) || email.length > 200) {
-    return jsonResponse({ error: "Please enter a valid email address." }, 400, request);
+  if (!CHILD_USERNAME_RE.test(username)) {
+    return jsonResponse({ error: "Username must be 3-20 letters or numbers, no spaces or symbols." }, 400, request);
   }
-  const pwProblem = passwordProblem(password, email);
+  const pwProblem = passwordProblem(password, username);
   if (pwProblem) {
     return jsonResponse({ error: pwProblem }, 400, request);
   }
 
-  const now = Date.now();
-  const codeRow = invite
-    ? await env.DB.prepare(
-        "SELECT code, label, max_uses, uses, expires_at, active FROM invite_codes WHERE code = ?"
-      ).bind(invite).first()
-    : null;
-  const codeOk = !!codeRow && codeRow.active === 1 && codeRow.uses < codeRow.max_uses &&
-    (codeRow.expires_at == null || codeRow.expires_at > now);
-  if (!codeOk) {
-    await recordFailure(env, ipKey, 8, 60 * 60 * 1000, 60 * 60 * 1000);
-    return jsonResponse(
-      { error: "That invite code isn't valid or has expired. Please check it or ask the LinguaBridge founder for a new one." },
-      403,
-      request
-    );
-  }
-
-  const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+  const existing = await env.DB.prepare("SELECT id FROM users WHERE lower(username) = lower(?)").bind(username).first();
   if (existing) {
-    await recordFailure(env, ipKey, 8, 60 * 60 * 1000, 60 * 60 * 1000);
-    return jsonResponse(
-      { error: "An account with that email already exists. Try logging in instead." },
-      409,
-      request
-    );
-  }
-
-  // Use up one invite slot atomically (so two people can't both use a single-use code).
-  const used = await env.DB.prepare(
-    "UPDATE invite_codes SET uses = uses + 1 WHERE code = ? AND active = 1 AND uses < max_uses AND (expires_at IS NULL OR expires_at > ?)"
-  ).bind(invite, now).run();
-  if (!used.meta || used.meta.changes !== 1) {
-    return jsonResponse({ error: "That invite code isn't valid or has expired." }, 403, request);
+    return jsonResponse({ error: "That username is already taken. Try another one." }, 409, request);
   }
 
   const { hash, salt, iterations } = await hashPassword(password);
@@ -348,21 +318,19 @@ async function handleSignup(request, env) {
   try {
     await env.DB.prepare(
       `INSERT INTO users (id, username, password_hash, password_salt, iterations, role, email, parent_id, status, invite_code)
-       VALUES (?, ?, ?, ?, ?, 'parent', ?, NULL, 'pending', ?)`
+       VALUES (?, ?, ?, ?, ?, 'parent', NULL, NULL, 'approved', NULL)`
     )
-      .bind(id, email, hash, salt, iterations, email, invite)
+      .bind(id, username, hash, salt, iterations)
       .run();
   } catch (e) {
-    await env.DB.prepare("UPDATE invite_codes SET uses = MAX(uses - 1, 0) WHERE code = ?").bind(invite).run();
-    return jsonResponse(
-      { error: "An account with that email already exists. Try logging in instead." },
-      409,
-      request
-    );
+    return jsonResponse({ error: "That username is already taken. Try another one." }, 409, request);
   }
 
-  // No session is created: the account can't be used until the founder approves it.
-  return jsonResponse({ pending: true }, 200, request);
+  // At most 6 new accounts per device per day.
+  await recordFailure(env, ipKey, 6, 24 * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
+
+  const token = await createSession(env, id);
+  return jsonResponse({ authenticated: true, username, role: "parent" }, 200, request, setSessionCookieHeaders(token));
 }
 
 async function handleListChildren(request, env) {
