@@ -218,6 +218,15 @@ else{
  let sceneTok=0;
  function scene(k){const c=S[k];vid.className='vid bg'+(k%4);
   vid.innerHTML='<div class="scene">'+(c.dl?'<div class="dl">'+c.dl.map((x,j)=>'<div style="animation-delay:'+(j*1.6)+'s">'+x+'</div>').join('')+'</div>':'<div class="em" id="vph" aria-hidden="true">'+c.em+'</div>'+(c.wd?'<div class="wd">'+c.wd+'</div><div class="sayit">Say it with me!</div>':''))+'</div>'+BR.replace('class="bridge"','class="vb"')+[8,24,70,88].map((x,j)=>'<i class="spk" style="left:'+x+'%;top:'+(10+j*14)+'%;background:'+['#FFC83D','#F0604D','#9B6BE0','#58B947'][(k+j)%4]+';animation-delay:'+(j*.5)+'s"></i>').join('')+'<div class="cap" aria-live="polite">'+c.say+'</div><div class="bar"><i id="pg"></i></div>';
+  /* 2026-11-16: Bridge introduces himself in the middle of the screen (first scene), then glides to his usual corner. */
+  try{const vb=vid.querySelector('.vb');if(vb&&k<2&&!(c.wd)){
+   const em0=vid.querySelector('.em');if(k===0&&em0)em0.style.display='none';
+   const vr=vid.getBoundingClientRect(),fr=vb.getBoundingClientRect();
+   const sc=Math.min(2.4,.44*vr.width/fr.width),dx=(vr.left+vr.width/2)-(fr.left+fr.width/2),dy=(vr.top+vr.height*.42)-(fr.top+fr.height/2);
+   const from='translate('+dx+'px,'+dy+'px) scale('+sc+')';
+   if(k===0){vb.style.animation='none';vb.style.transform=from;vb.style.zIndex=4}
+   else if(vb.animate&&!matchMedia('(prefers-reduced-motion:reduce)').matches){vb.animate([{transform:from},{transform:'none'}],{duration:1000,easing:'ease-in-out'})}
+  }}catch(e){}
   const done=S.slice(0,k).reduce((a,x)=>a+dur(x),0);
   const pg=document.getElementById('pg');pg.style.width=(done/total*100)+'%';pg.style.transition='width '+dur(c)+'ms linear';requestAnimationFrame(()=>requestAnimationFrame(()=>pg.style.width=((done+dur(c))/total*100)+'%'));
   /* 2026-11-10: move on as soon as the voice finishes (plus a short beat), instead of waiting a fixed time,
