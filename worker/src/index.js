@@ -1192,6 +1192,7 @@ const AI_VOICE_CAP = 50000;
 const AI_CHAT_CAP = 60000;
 const AI_PAID_30D_CAP = 150000;
 const NEURONS_PER_CHAT = 30;
+const ANON_NEW_LINES_PER_DAY = 60; // fresh (never-saved) voice lines one logged-out visitor can cause per day
 function budgetDay() { return new Date().toISOString().slice(0, 10); }
 async function aiUsedToday(env) {
   try { const r = await env.DB.prepare("SELECT n FROM ai_budget WHERE day = ?").bind(budgetDay()).first(); return r ? r.n : 0; } catch (e) { return 0; }
@@ -1223,9 +1224,10 @@ const TTS_SAMPLE_SPEAKERS = ["angus","asteria","arcas","orion","orpheus","athena
 // Aura-2 voices (voice lab only, 2026-11-15): a newer, more natural family.
 const TTS2_SPEAKERS = ["thalia","andromeda","helena","apollo","arcas","aries","amalthea","asteria","athena","atlas","aurora","callista","cora","cordelia","delia","draco","electra","harmonia","hera","hermes","hyperion","iris","janus","juno","jupiter","luna","mars","minerva","neptune","odysseus","ophelia","orion","orpheus","pandora","phoebe","pluto","saturn","selene","theia","vesta","zeus"];
 async function handleTts(request, env, url, ctx) {
-  if (!(await getSessionUser(request, env))) {
-    return jsonResponse({ error: "Please log in." }, 401, request);
-  }
+  // 2026-11-16: visitors who are not logged in (Try a Lesson, the home page, people who just got the link) must hear
+  // Apollo and Callista too. Saved lines are free for everyone. A line that has to be made fresh by the AI is allowed
+  // for visitors up to ANON_NEW_LINES_PER_DAY per person (IP address) per day, on top of the daily AI budget guard.
+  const signedIn = !!(await getSessionUser(request, env));
   const text = (url.searchParams.get("text") || "").trim().slice(0, 220);
   if (!text) return jsonResponse({ error: "No text." }, 400, request);
   let speaker = TTS_VOICES[url.searchParams.get("voice")] || TTS_VOICES.boy;
@@ -1250,6 +1252,11 @@ async function handleTts(request, env, url, ctx) {
         ctx.waitUntil(cache.put(cacheKey, audio.clone()));
       }
     } catch (e) {}
+  }
+  if (!audio && !signedIn) {
+    const anonKey = "tts:ip:" + clientIp(request);
+    if (await isLocked(env, anonKey)) return jsonResponse({ error: "Voice resting for today." }, 429, request);
+    await recordFailure(env, anonKey, ANON_NEW_LINES_PER_DAY, 24 * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
   }
   if (!audio && !(await aiAllowed(env, "voice"))) {
     return jsonResponse({ error: "Voice resting for today." }, 503, request);
