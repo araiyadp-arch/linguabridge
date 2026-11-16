@@ -145,7 +145,7 @@ function LB_vc(msg,bad){try{return;window.__vcl=window.__vcl||[];window.__vcl.pu
 /* Clearer speech (2026-11-15): the voice sometimes ran words together or skipped one. Always end with a full stop; in practice (pronunciation)
    mode put a short pause between words so every word is heard. */
 function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'').replace(/\s+/g,' ').trim();
- if(mode==='pronunciation'){const w=x.replace(/[.!?,]+$/,'').split(' ').filter(Boolean);if(w.length>1&&w.length<=8)x=w.join(', ');else x=w.join(' ')}
+ if(mode==='pronunciation'){const w=x.replace(/[.!?,]+$/,'').split(' ').filter(Boolean);if(w.length>1&&w.length<=8)x=w.join(', ');else x=w.join(' ');/* 2026-11-16: the voice cuts the end off very short words (Hi, No, Me). Ending them with ... makes it finish the word. */ if(w.length===1&&/^[A-Za-z']{1,3}$/.test(w[0]))x=w[0]+'...'}
  return /[.!?]$/.test(x)?x:x+'.'}
 let _tok=0,_cloudOff=0;
 /* FOUNDER RULE (2026-11-15): ONLY Apollo and Callista, everywhere. Never fall back to a backup/robot voice. If a line can't load it is retried 3 times, then skipped silently. */
