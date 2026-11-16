@@ -448,6 +448,7 @@
       <a href="linguabridge-about.html">About Us</a>
       <a href="linguabridge-try.html">Try a Lesson</a>
       <a href="linguabridge-contact.html">Contact</a>
+      <a href="linguabridge-signup.html" class="nav-signup">Sign Up</a>
       <a href="linguabridge-login-2.html" class="btn btn-primary">Log In</a>
           </div>
 
@@ -461,6 +462,7 @@
     <a href="linguabridge-about.html">About Us</a>
     <a href="linguabridge-try.html">Try a Lesson</a>
       <a href="linguabridge-contact.html">Contact</a>
+      <a href="linguabridge-signup.html" class="nav-signup">Sign Up</a>
       <a href="linguabridge-login-2.html" class="btn btn-primary">Log In</a>
       </div>
 </nav>
@@ -478,6 +480,7 @@
       <p class="hero-copy">A free place to learn English, build confidence, and discover the joy of communication.</p>
       <div class="hero-cta">
         <a href="linguabridge-try.html" class="fun-btn fun-go">Try a free lesson</a>
+        <a href="linguabridge-signup.html" class="fun-btn fun-go" id="heroSignup">Sign up</a>
         <a href="linguabridge-login-2.html" class="fun-btn fun-alt">Log in</a>
         <p class="private-note">Free for every child &bull; Ages 5&ndash;17</p>
       </div>
@@ -592,7 +595,7 @@
 <script>
 /* After login everyone lands here. If signed in, the Log in buttons become "My lessons". */
 (function(){fetch('https://api.lingua-bridge.us/api/me',{credentials:'include'}).then(function(r){return r.json()}).then(function(d){
- if(!d||!d.authenticated)return;document.querySelectorAll('a[href="linguabridge-login-2.html"]').forEach(function(a){a.href='linguabridge-dashboard.html';a.textContent=a.classList.contains('fun-btn')?'My lessons':'My Lessons'})}).catch(function(){})})();
+ if(!d||!d.authenticated)return;document.querySelectorAll('a[href="linguabridge-signup.html"]').forEach(function(a){a.style.display='none'});document.querySelectorAll('a[href="linguabridge-login-2.html"]').forEach(function(a){a.href='linguabridge-dashboard.html';a.textContent=a.classList.contains('fun-btn')?'My lessons':'My Lessons'})}).catch(function(){})})();
 </script>
 </body>
 </html>
