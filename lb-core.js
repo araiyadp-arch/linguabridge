@@ -141,7 +141,7 @@ function LB_clip(t,mode){if(LB_voiceId()!=='girl')return null;const s=slugOf(t);
 const LB_VOICE_LIFT={boy:1,girl:1}; /* 2026-11-15: Normal speed made ~10% slower at the founder's request */
 /* Voice check (2026-11-15): open any page with ?vc=1 once to show a small label saying which voice REALLY played. ?vc=0 hides it. */
 try{const q=new URLSearchParams(location.search).get('vc');if(q==='1')localStorage.setItem('lb_vc','1');if(q==='0')localStorage.removeItem('lb_vc')}catch(e){}
-function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 13px system-ui;color:#fff;max-width:80vw';(document.body||document.documentElement).appendChild(d)}d.style.background=bad?'#c0392b':'#12864A';d.textContent=msg}catch(e){}}
+function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 13px system-ui;color:#fff;max-width:80vw';(document.body||document.documentElement).appendChild(d)}d.style.background=bad?'#c0392b':'#12864A';d.textContent=msg+' | '+((navigator.userAgent.match(/(Edg|Chrome|CriOS|FxiOS|Firefox|Version)\/(\d+)/)||[])[0]||'browser')+(/iPhone|iPad/.test(navigator.userAgent)?' iOS':/Macintosh/.test(navigator.userAgent)?' Mac':'')}catch(e){}}
 /* Clearer speech (2026-11-15): the voice sometimes ran words together or skipped one. Always end with a full stop; in practice (pronunciation)
    mode put a short pause between words so every word is heard. */
 function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'').replace(/\s+/g,' ').trim();
@@ -173,18 +173,18 @@ function LB_ctx(){if(!_ctx){const C=window.AudioContext||window.webkitAudioConte
  ['pointerdown','touchstart','touchend','click','keydown'].forEach(e=>document.addEventListener(e,wake,true))})();
 function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
  if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||!LB_ttsText(t,mode).replace(/[.!?,\s]/g,'')){fb();return}
- const url=LB_ttsUrl(t,mode);
+ const url=LB_ttsUrl(t,mode);LB_vc('Tap received: '+(_ttsDone.has(url)?'line ready':'getting the voice line...'));
  const rate=(mode==='pronunciation'?0.9:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);
- let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&(tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb()};
+ let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&(tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else{LB_vc('Gave up after 3 tries - no sound',true);fb()}};
  /* Backup player: decode the saved line and play it with WebAudio. */
- const viaCtx=(b)=>{const c=LB_ctx();if(!c||!b){f();return}
-  const run=()=>{(b.arrayBuffer?b.arrayBuffer():new Response(b).arrayBuffer()).then(ab=>new Promise((ok,no)=>{const p=c.decodeAudioData(ab,ok,no);if(p&&p.catch)p.catch(no)})).then(buf=>{if(my!==_tok)return;const s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate;const g=c.createGain();g.gain.value=BRIDGE_VOICE_CONFIG.volume;s.connect(g);g.connect(c.destination);
-    const h={onended:null,onerror:null,pause(){try{s.onended=null;s.stop()}catch(e){}}};_cur=h;s.onended=()=>{if(my===_tok&&done)done()};s.start(0);LB_vc('Playing: '+LB_voice4()+' (cloud voice, backup player)')}).catch(f)};
+ const viaCtx=(b)=>{const c=LB_ctx();if(!c||!b){LB_vc('No backup sound channel in this browser',true);f();return}
+  const run=()=>{(b.arrayBuffer?b.arrayBuffer():new Response(b).arrayBuffer()).then(ab=>new Promise((ok,no)=>{const p=c.decodeAudioData(ab,ok,no);if(p&&p.catch)p.catch(no)})).then(buf=>{if(my!==_tok)return;LB_vc('Backup player: decoded '+buf.duration.toFixed(1)+'s, sound channel is '+c.state);const s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate;const g=c.createGain();g.gain.value=BRIDGE_VOICE_CONFIG.volume;s.connect(g);g.connect(c.destination);
+    const h={onended:null,onerror:null,pause(){try{s.onended=null;s.stop()}catch(e){}}};_cur=h;s.onended=()=>{if(my===_tok&&done)done()};s.start(0);LB_vc('Playing: '+LB_voice4()+' (backup player, channel '+c.state+')')}).catch(e=>{LB_vc('Backup player failed: '+(e&&(e.name||e.message)||'decode error'),true);f()})};
   if(c.state!=='running'){const r=c.resume();if(r&&r.then)r.then(run,run);else run()}else run()};
  const go=(src,b)=>{if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');const a=LB_au();try{a.pause()}catch(e){}a.onended=null;a.onerror=null;a.src=src;_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
   a.playbackRate=rate;try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
-  let failed=false;const fail=()=>{if(failed||my!==_tok)return;failed=true;viaCtx(b)};
-  a.onended=()=>{if(done)done()};a.onerror=fail;const r=a.play();if(r&&r.catch)r.catch(fail)};
+  let failed=false;const fail=(why)=>{if(failed||my!==_tok)return;failed=true;LB_vc('Player refused ('+(why&&why.name?why.name:'error '+(a.error&&a.error.code))+'), trying backup player',true);viaCtx(b)};
+  a.onended=()=>{if(done)done()};a.onerror=()=>fail();const r=a.play();if(r&&r.catch)r.catch(fail);else if(r===undefined)LB_vc('Playing (old browser)')};
  const hit=_ttsDone.get(url);
  if(hit){go(URL.createObjectURL(hit),hit);return}
  LB_ttsFetch(url).then(b=>{go(URL.createObjectURL(b),b)}).catch(()=>{if(my!==_tok)return;if(!window.LB_lastVoiceError)LB_vc('Cloud voice FAILED (no connection) - using backup voice',true);if(window.LB_STRICT_VOICE){if((tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
