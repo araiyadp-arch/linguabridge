@@ -1223,6 +1223,15 @@ const TTS_VOICES = { boy: "arcas", girl: "asteria" };
 const TTS_SAMPLE_SPEAKERS = ["angus","asteria","arcas","orion","orpheus","athena","luna","zeus","perseus","helios","hera","stella"];
 // Aura-2 voices (voice lab only, 2026-11-15): a newer, more natural family.
 const TTS2_SPEAKERS = ["thalia","andromeda","helena","apollo","arcas","aries","amalthea","asteria","athena","atlas","aurora","callista","cora","cordelia","delia","draco","electra","harmonia","hera","hermes","hyperion","iris","janus","juno","jupiter","luna","mars","minerva","neptune","odysseus","ophelia","orion","orpheus","pandora","phoebe","pluto","saturn","selene","theia","vesta","zeus"];
+// 2026-11-16: a real voice line is an MP3 (ID3 tag or MPEG frame sync) of at least ~1.2 KB. Anything else (for example Cloudflare's
+// "daily free allocation used up" error message) must NEVER be saved or played as audio.
+function isGoodAudio(bytes) {
+  if (!bytes || bytes.length < 1200) return false;
+  if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true; // "ID3"
+  return bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0; // MPEG frame sync
+}
+const TTS_EDGE_CACHE_VERSION = "v2"; // bumped so earlier (bad) edge copies are ignored
+
 async function handleTts(request, env, url, ctx) {
   // 2026-11-16: visitors who are not logged in (Try a Lesson, the home page, people who just got the link) must hear
   // Apollo and Callista too. Saved lines are free for everyone. A line that has to be made fresh by the AI is allowed
@@ -1235,7 +1244,7 @@ async function handleTts(request, env, url, ctx) {
   if (sp && TTS_SAMPLE_SPEAKERS.includes(sp)) speaker = sp;
   const engine = url.searchParams.get("engine") || "aura1";
   if (engine === "aura2" && TTS2_SPEAKERS.includes(sp || "")) speaker = sp;
-  const cacheKey = new Request("https://tts.cache.lingua-bridge.us/" + engine + "/" + speaker + "/" + encodeURIComponent(text));
+  const cacheKey = new Request("https://tts.cache.lingua-bridge.us/" + TTS_EDGE_CACHE_VERSION + "/" + engine + "/" + speaker + "/" + encodeURIComponent(text));
   const cache = caches.default;
   let audio = await cache.match(cacheKey);
   // Permanent copy in D1 (2026-11-15): every line is made by the AI only ONCE ever, then reused for every child.
@@ -1248,8 +1257,12 @@ async function handleTts(request, env, url, ctx) {
         const bin = atob(row.a);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        audio = new Response(bytes, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
-        ctx.waitUntil(cache.put(cacheKey, audio.clone()));
+        if (isGoodAudio(bytes)) {
+          audio = new Response(bytes, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
+          ctx.waitUntil(cache.put(cacheKey, audio.clone()));
+        } else {
+          ctx.waitUntil(env.DB.prepare("DELETE FROM tts_cache WHERE k = ?").bind(dbKey).run().catch(() => {}));
+        }
       }
     } catch (e) {}
   }
@@ -1274,9 +1287,10 @@ async function handleTts(request, env, url, ctx) {
       } else {
         const model = engine === "aura2" ? "@cf/deepgram/aura-2-en" : "@cf/deepgram/aura-1";
         const resp = await env.AI.run(model, { text, speaker, encoding: "mp3" }, { returnRawResponse: true });
+        if (resp.ok === false) throw new Error("ai status " + resp.status);
         buf = await resp.arrayBuffer();
       }
-      if (!buf.byteLength) throw new Error("empty");
+      if (!isGoodAudio(new Uint8Array(buf))) throw new Error("not audio");
       ctx.waitUntil(aiSpend(env, text.length * (engine === "aura2" ? 2.9 : 1.5)));
       audio = new Response(buf, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "public, max-age=2592000" } });
       ctx.waitUntil(cache.put(cacheKey, audio.clone()));
