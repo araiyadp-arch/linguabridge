@@ -566,7 +566,7 @@
 </footer>
 
 <script>window.LB_NO_ASK=true;</script>
-<script>try{localStorage.setItem('lb_vc','1')}catch(e){}</script>
+<script>try{localStorage.removeItem('lb_vc')}catch(e){}</script>
 <script src="lb-core.js?v=20261116g"></script>
 <script src="lb-content.js?v=20261116b"></script>
 <script src="lb-icons.js"></script>
@@ -589,6 +589,6 @@
 })();
 document.getElementById('hamburgerBtn').addEventListener('click',()=>{const o=document.getElementById('mobilePanel').classList.toggle('open');document.getElementById('hamburgerBtn').setAttribute('aria-expanded',o?'true':'false')});
 </script>
-<script>window.addEventListener('load',function(){try{LB_vc('Voice test page ready (version g). Tap Listen on a word.')}catch(e){}})</script>
+
 </body>
 </html>
