@@ -144,10 +144,12 @@ try{const q=new URLSearchParams(location.search).get('vc');if(q==='1')localStora
 function LB_vc(msg,bad){try{if(localStorage.getItem('lb_vc')!=='1')return;let d=document.getElementById('lbvc');if(!d){d=document.createElement('div');d.id='lbvc';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:999999;padding:6px 10px;border-radius:8px;font:700 13px system-ui;color:#fff;max-width:80vw';(document.body||document.documentElement).appendChild(d)}d.style.background=bad?'#c0392b':'#12864A';d.textContent=msg}catch(e){}}
 /* Clearer speech (2026-11-15): the voice sometimes ran words together or skipped one. Always end with a full stop; in practice (pronunciation)
    mode put a short pause between words so every word is heard. */
-function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
+function LB_ttsText(t,mode){let x=String(t).replace(/<[^>]*>/g,'').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'').replace(/\s+/g,' ').trim();
  if(mode==='pronunciation'){const w=x.replace(/[.!?,]+$/,'').split(' ').filter(Boolean);if(w.length>1&&w.length<=8)x=w.join(', ');else x=w.join(' ')}
  return /[.!?]$/.test(x)?x:x+'.'}
 let _tok=0,_cloudOff=0;
+/* FOUNDER RULE (2026-11-15): ONLY Apollo and Callista, everywhere. Never fall back to a backup/robot voice. If a line can't load it is retried 3 times, then skipped silently. */
+if(typeof window.LB_STRICT_VOICE==='undefined')window.LB_STRICT_VOICE=true;
 /* 2026-11-15 voice smoothness: (1) ONE shared audio element that is unlocked on the first tap, because phones (iPhone/iPad
    especially) refuse to play a brand-new Audio() that starts after a download finishes -> that was the silent gaps;
    (2) lines are fetched ahead of time (LB_ttsPrefetch) so the next line is ready when the last one ends -> no breaks. */
@@ -162,9 +164,9 @@ function LB_ttsFetch(url){let p=_ttsBlobs.get(url);if(p)return p;
  p=fetch(url,{credentials:'include'}).then(r=>{if(!r.ok){window.LB_lastVoiceError=r.status;LB_vc('Cloud voice FAILED (error '+r.status+') - using backup voice',true);throw new Error(r.status)}return r.blob()});
  _ttsBlobs.set(url,p);p.catch(()=>{if(_ttsBlobs.get(url)===p)_ttsBlobs.delete(url)});if(_ttsBlobs.size>60){const k=_ttsBlobs.keys().next().value;_ttsBlobs.delete(k)}return p}
 /* list = [[text, mode], ...]; fetched one after another so we never flood the server */
-window.LB_ttsPrefetch=function(list){try{let chain=Promise.resolve();(list||[]).forEach(([t,m])=>{if(!t||/[\u{1F300}-\u{1FAFF}]/u.test(t))return;chain=chain.then(()=>LB_ttsFetch(LB_ttsUrl(t,m||'conversational')).catch(()=>{}))})}catch(e){}};
+window.LB_ttsPrefetch=function(list){try{let chain=Promise.resolve();(list||[]).forEach(([t,m])=>{if(!t)return;chain=chain.then(()=>LB_ttsFetch(LB_ttsUrl(t,m||'conversational')).catch(()=>{}))})}catch(e){}};
 function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
- if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||/[\u{1F300}-\u{1FAFF}]/u.test(t)){fb();return}
+ if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||!LB_ttsText(t,mode).replace(/[.!?,\s]/g,'')){fb();return}
  const url=LB_ttsUrl(t,mode);
  LB_ttsFetch(url).then(b=>{
   if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');const a=LB_au();try{a.pause()}catch(e){}a.onended=null;a.onerror=null;a.src=URL.createObjectURL(b);_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
@@ -180,7 +182,7 @@ function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational
   try{const u=utter(t,mode,LB_voiceId());if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}};
  cloudSay(t,mode,opts.done,old)}
 function bridgeSpeakSeq(arr,mode,finalDone){stopAudio();let i=0;try{LB_ttsPrefetch(arr.map(t=>[t,mode||'conversational']))}catch(e){}const next=()=>{if(i>=arr.length){if(finalDone)finalDone();return}const t=arr[i++];const m=mode||'conversational';
- const old=()=>{const b64=LB_clip(t,m);if(b64){playClip(b64,t,m,next);return}
+ const old=()=>{if(window.LB_STRICT_VOICE){setTimeout(next,1200);return}const b64=LB_clip(t,m);if(b64){playClip(b64,t,m,next);return}
   try{const u=utter(t,m,LB_voiceId());u.onend=next;u.onerror=next;speechSynthesis.speak(u)}catch(e){next()}};
  cloudSay(t,m,next,old)};next()}
 // Backward-compatible aliases — existing pages that call speak()/speakSeq() automatically get
