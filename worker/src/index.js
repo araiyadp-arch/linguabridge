@@ -1089,8 +1089,10 @@ async function handleAskBridge(request, env) {
       // Observability/Logs view (Message column) instead of being invisible —
       // the response to the student stays generic/kid-safe either way.
       console.error("Ask Bridge AI call failed:", e && e.message ? e.message : e);
+      const su = await getSessionUser(request, env);
+      const detail = su && su.role === "founder" ? " [founder only: " + String(e && e.message ? e.message : e).slice(0, 200) + "]" : "";
       return jsonResponse(
-        { error: "Bridge couldn't think of an answer right now. Please try again in a moment." },
+        { error: "Bridge couldn't think of an answer right now. Please try again in a moment." + detail },
         502,
         request
       );
@@ -1347,6 +1349,21 @@ export default {
     }
     if (url.pathname === "/api/tts" && request.method === "GET") {
       return handleTts(request, env, url, ctx);
+    }
+    if (url.pathname === "/api/ai-check" && request.method === "GET") {
+      // Founder-only: tests the AI right now and shows the real error text (for finding why Bridge fails).
+      if (!(await requireFounder(request, env))) return jsonResponse({ error: "Not allowed." }, 403, request);
+      const out = {};
+      try {
+        const r = await env.AI.run(ASK_BRIDGE_MODEL, { messages: [{ role: "user", content: "Say hi in three words." }], max_tokens: 20 });
+        out.chat = { ok: true, reply: (r && (r.response || (r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content))) || r };
+      } catch (e) { out.chat = { ok: false, error: String(e && e.message ? e.message : e) }; }
+      try {
+        const r2 = await env.AI.run("@cf/deepgram/aura-2-en", { text: "Hello.", speaker: "apollo", encoding: "mp3" }, { returnRawResponse: true });
+        out.voice = { ok: true, bytes: (await r2.arrayBuffer()).byteLength };
+      } catch (e) { out.voice = { ok: false, error: String(e && e.message ? e.message : e) }; }
+      try { const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM tts_cache").first(); out.saved_voice_lines = c && c.n; } catch (e) { out.saved_voice_lines = "no table"; }
+      return jsonResponse(out, 200, request);
     }
     if (url.pathname === "/api/ask-bridge" && request.method === "POST") {
       return handleAskBridge(request, env);
