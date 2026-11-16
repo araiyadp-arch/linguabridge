@@ -1064,7 +1064,7 @@ async function handleAskBridge(request, env) {
     // produce a confident, wrong answer.
     answer = answerTimeQuestion(question);
   } else {
-    if ((await aiUsedToday(env)) >= AI_CHAT_CAP) {
+    if (!(await aiAllowed(env, "chat"))) {
       return jsonResponse({ error: "Bridge is resting for today. Please try again tomorrow!" }, 503, request);
     }
     try {
@@ -1178,16 +1178,38 @@ async function handleSaveProgress(request, env) {
 }
 
 
-// ---- Daily AI budget guard (2026-11-15) ----
-// Cloudflare's free plan allows 10,000 "neurons" a day for ALL AI together. This counts what we spend (an estimate) so that
-// voices can never use up the whole day and leave Ask Bridge dead: new voice lines stop at VOICE_CAP, chat stops at CHAT_CAP.
-// If the founder ever moves to Workers Paid, raise both numbers (for example 150000 and 200000 = about $1.50 and $2 a day maximum).
-const AI_VOICE_CAP = 6000;
-const AI_CHAT_CAP = 9500;
+// ---- AI budget guard (2026-11-15) ----
+// Cloudflare gives 10,000 "neurons" a day for ALL AI together, free. The founder is on Workers Paid (from 2026-11-15), so AI can
+// go past that and is billed at $0.011 per 1,000 neurons. Three limits keep the bill small:
+//  1. Free part: new voice lines stop at 6,000 and chat at 9,500 so voices can never use the whole free day and kill Ask Bridge.
+//  2. Daily paid part: with Paid, new voice lines stop at AI_VOICE_CAP and chat at AI_CHAT_CAP (about $0.44 and $0.55 a day at most).
+//  3. 30-day paid part: all neurons above the free 10,000 per day, summed over the last 30 days, can never pass AI_PAID_30D_CAP
+//     (150,000 = about $1.65). After that the site goes back to the free-only limits until the 30-day window moves on.
+// The counts are estimates (NEURONS_PER_CHAT, 2.9 per voice character), so the real bill is kept under $2 on purpose.
+const AI_FREE_VOICE_CAP = 6000;
+const AI_FREE_CHAT_CAP = 9500;
+const AI_VOICE_CAP = 50000;
+const AI_CHAT_CAP = 60000;
+const AI_PAID_30D_CAP = 150000;
 const NEURONS_PER_CHAT = 30;
 function budgetDay() { return new Date().toISOString().slice(0, 10); }
 async function aiUsedToday(env) {
   try { const r = await env.DB.prepare("SELECT n FROM ai_budget WHERE day = ?").bind(budgetDay()).first(); return r ? r.n : 0; } catch (e) { return 0; }
+}
+async function aiPaid30d(env) {
+  try {
+    const r = await env.DB.prepare("SELECT SUM(CASE WHEN n > 10000 THEN n - 10000 ELSE 0 END) AS p FROM ai_budget WHERE day >= date('now', '-30 days')").first();
+    return r && r.p ? r.p : 0;
+  } catch (e) { return 0; }
+}
+// kind: "chat" or "voice". True when one more AI call is allowed right now.
+async function aiAllowed(env, kind) {
+  const used = await aiUsedToday(env);
+  const freeCap = kind === "chat" ? AI_FREE_CHAT_CAP : AI_FREE_VOICE_CAP;
+  if (used < freeCap) return true;
+  const dayCap = kind === "chat" ? AI_CHAT_CAP : AI_VOICE_CAP;
+  if (used >= dayCap) return false;
+  return (await aiPaid30d(env)) < AI_PAID_30D_CAP;
 }
 async function aiSpend(env, n) {
   try { await env.DB.prepare("INSERT INTO ai_budget (day, n) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET n = n + excluded.n").bind(budgetDay(), Math.ceil(n)).run(); } catch (e) {}
@@ -1229,7 +1251,7 @@ async function handleTts(request, env, url, ctx) {
       }
     } catch (e) {}
   }
-  if (!audio && (await aiUsedToday(env)) >= AI_VOICE_CAP) {
+  if (!audio && !(await aiAllowed(env, "voice"))) {
     return jsonResponse({ error: "Voice resting for today." }, 503, request);
   }
   if (!audio) {
