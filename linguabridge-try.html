@@ -566,12 +566,13 @@
 </footer>
 
 <script>window.LB_NO_ASK=true;</script>
-<script src="lb-core.js?v=20261116b"></script>
+<script src="lb-core.js?v=20261116c"></script>
 <script src="lb-content.js?v=20261116b"></script>
 <script src="lb-icons.js"></script>
 <script>
 (function(){
  const L=LESSON_CONTENT.explorer[0];
+ try{const pf=[];L.vocab1.forEach(v=>pf.push([v[0],'pronunciation']));L.conversation.forEach(x=>pf.push([x[1],'conversational']));LB_ttsPrefetch(pf)}catch(e){}
  const vg=document.getElementById('vg');
  L.vocab1.forEach(v=>{const d=document.createElement('div');d.className='vcard';
   d.innerHTML='<div class="vi"></div><b></b><span></span><button class="tbtn" type="button">Listen</button>';

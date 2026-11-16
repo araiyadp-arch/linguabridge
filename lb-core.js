@@ -166,22 +166,28 @@ function LB_ttsFetch(url){let p=_ttsBlobs.get(url);if(p)return p;
  _ttsBlobs.set(url,p);p.catch(()=>{if(_ttsBlobs.get(url)===p)_ttsBlobs.delete(url)});if(_ttsBlobs.size>60){const k=_ttsBlobs.keys().next().value;_ttsBlobs.delete(k)}return p}
 /* list = [[text, mode], ...]; fetched one after another so we never flood the server */
 window.LB_ttsPrefetch=function(list){try{let chain=Promise.resolve();(list||[]).forEach(([t,m])=>{if(!t)return;chain=chain.then(()=>LB_ttsFetch(LB_ttsUrl(t,m||'conversational')).catch(()=>{}))})}catch(e){}};
+/* WebAudio player: once unlocked by any tap it can play a decoded line at any time, even long after the tap (Safari/iPhone rule). */
+let _ctx=null;
+function LB_ctx(){if(!_ctx){const C=window.AudioContext||window.webkitAudioContext;if(C){try{_ctx=new C()}catch(e){}}}return _ctx}
+(function(){function wake(){const c=LB_ctx();if(!c)return;try{if(c.state!=='running'){const r=c.resume();if(r&&r.catch)r.catch(()=>{})}const bf=c.createBuffer(1,1,22050),sr=c.createBufferSource();sr.buffer=bf;sr.connect(c.destination);sr.start(0);if(c.state==='running')['pointerdown','touchstart','touchend','click','keydown'].forEach(e=>document.removeEventListener(e,wake,true))}catch(e){}}
+ ['pointerdown','touchstart','touchend','click','keydown'].forEach(e=>document.addEventListener(e,wake,true))})();
 function cloudSay(t,mode,done,fb,again,tries){const my=again||++_tok;
  if(!window.LB_STRICT_VOICE&&Date.now()<_cloudOff||!LB_ttsText(t,mode).replace(/[.!?,\s]/g,'')){fb();return}
  const url=LB_ttsUrl(t,mode);
  const rate=(mode==='pronunciation'?0.9:1)*LB_speed()*(LB_VOICE_LIFT[LB_voiceId()==='girl'?'girl':'boy']||1);
  let bad=false;const f=()=>{if(bad)return;bad=true;if(my!==_tok)return;if(window.LB_STRICT_VOICE&&(tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb()};
- /* Play straight from the tap: a saved line plays from memory, a new line streams from its link.
-    Browsers (Safari especially) only allow sound that starts inside the tap, so we must not wait for a download first. */
- const go=(src)=>{if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');const a=LB_au();try{a.pause()}catch(e){}a.onended=null;a.onerror=null;a.src=src;_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
+ /* Backup player: decode the saved line and play it with WebAudio. */
+ const viaCtx=(b)=>{const c=LB_ctx();if(!c||!b){f();return}
+  const run=()=>{(b.arrayBuffer?b.arrayBuffer():new Response(b).arrayBuffer()).then(ab=>new Promise((ok,no)=>{const p=c.decodeAudioData(ab,ok,no);if(p&&p.catch)p.catch(no)})).then(buf=>{if(my!==_tok)return;const s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate;const g=c.createGain();g.gain.value=BRIDGE_VOICE_CONFIG.volume;s.connect(g);g.connect(c.destination);
+    const h={onended:null,onerror:null,pause(){try{s.onended=null;s.stop()}catch(e){}}};_cur=h;s.onended=()=>{if(my===_tok&&done)done()};s.start(0);LB_vc('Playing: '+LB_voice4()+' (cloud voice, backup player)')}).catch(f)};
+  if(c.state!=='running'){const r=c.resume();if(r&&r.then)r.then(run,run);else run()}else run()};
+ const go=(src,b)=>{if(my!==_tok)return;LB_vc('Playing: '+LB_voice4()+' (cloud voice)');const a=LB_au();try{a.pause()}catch(e){}a.onended=null;a.onerror=null;a.src=src;_cur=a;a.volume=BRIDGE_VOICE_CONFIG.volume;
   a.playbackRate=rate;try{a.preservesPitch=true;a.mozPreservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
-  let fresh=false;
-  const viaFresh=()=>{if(fresh||my!==_tok)return;fresh=true;try{const n=new Audio(src);_cur=n;n.volume=a.volume;n.playbackRate=rate;try{n.preservesPitch=true;n.webkitPreservesPitch=true}catch(e){}n.onended=()=>{if(done)done()};n.onerror=f;const q=n.play();if(q&&q.catch)q.catch(f)}catch(e){f()}};
-  a.onended=()=>{if(done)done()};a.onerror=viaFresh;const r=a.play();if(r&&r.catch)r.catch(viaFresh)};
+  let failed=false;const fail=()=>{if(failed||my!==_tok)return;failed=true;viaCtx(b)};
+  a.onended=()=>{if(done)done()};a.onerror=fail;const r=a.play();if(r&&r.catch)r.catch(fail)};
  const hit=_ttsDone.get(url);
- if(hit){go(URL.createObjectURL(hit));return}
- if(!tries&&!_ttsBlobs.has(url)){go(url);return}
- LB_ttsFetch(url).then(b=>{go(URL.createObjectURL(b))}).catch(()=>{if(my!==_tok)return;if(!window.LB_lastVoiceError)LB_vc('Cloud voice FAILED (no connection) - using backup voice',true);if(window.LB_STRICT_VOICE){if((tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
+ if(hit){go(URL.createObjectURL(hit),hit);return}
+ LB_ttsFetch(url).then(b=>{go(URL.createObjectURL(b),b)}).catch(()=>{if(my!==_tok)return;if(!window.LB_lastVoiceError)LB_vc('Cloud voice FAILED (no connection) - using backup voice',true);if(window.LB_STRICT_VOICE){if((tries||0)<3){setTimeout(()=>{if(my===_tok)cloudSay(t,mode,done,fb,my,(tries||0)+1)},900)}else fb();return}_cloudOff=Date.now()+(window.LB_lastVoiceError===401?180000:15000);try{console.warn('LinguaBridge cloud voice failed, status',window.LB_lastVoiceError)}catch(e){}fb()})}
 function LB_chunkText(t,max){const x=String(t).replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();if(x.length<=max)return [x];const parts=x.match(/[^.!?]+[.!?]*\s*/g)||[x],out=[];let cur='';parts.forEach(q=>{if((cur+q).length>max&&cur){out.push(cur.trim());cur=q}else cur+=q});if(cur.trim())out.push(cur.trim());return out}
 function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational';
  if(String(t).length>200){const ch=LB_chunkText(t,190);if(ch.length>1){bridgeSpeakSeq(ch,mode,opts.done);return}}
@@ -189,7 +195,7 @@ function bridgeSpeak(t,opts){opts=opts||{};const mode=opts.mode||'conversational
  const old=()=>{if(window.LB_STRICT_VOICE){setTimeout(()=>{if(opts.done)opts.done()},1500);return}const b64=LB_clip(t,mode);if(b64){playClip(b64,t,mode,opts.done);return}
   try{const u=utter(t,mode,LB_voiceId());if(opts.done){u.onend=opts.done;u.onerror=opts.done}speechSynthesis.speak(u)}catch(e){if(opts.done)opts.done()}};
  cloudSay(t,mode,opts.done,old)}
-function bridgeSpeakSeq(arr,mode,finalDone){stopAudio();let i=0;try{LB_ttsPrefetch(arr.slice(1).map(t=>[t,mode||'conversational']))}catch(e){}const next=()=>{if(i>=arr.length){if(finalDone)finalDone();return}const t=arr[i++];const m=mode||'conversational';
+function bridgeSpeakSeq(arr,mode,finalDone){stopAudio();let i=0;try{LB_ttsPrefetch(arr.map(t=>[t,mode||'conversational']))}catch(e){}const next=()=>{if(i>=arr.length){if(finalDone)finalDone();return}const t=arr[i++];const m=mode||'conversational';
  const old=()=>{if(window.LB_STRICT_VOICE){setTimeout(next,1200);return}const b64=LB_clip(t,m);if(b64){playClip(b64,t,m,next);return}
   try{const u=utter(t,m,LB_voiceId());u.onend=next;u.onerror=next;speechSynthesis.speak(u)}catch(e){next()}};
  cloudSay(t,m,next,old)};next()}

@@ -130,7 +130,7 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 <div class="actions" style="margin-top:0"><button class="btn btn-secondary" id="back">Back</button><button class="btn btn-primary" id="next">Next</button></div>
 
 </div></main>
-<script src="lb-core.js?v=20261116b"></script>
+<script src="lb-core.js?v=20261116c"></script>
 <script src="lb-content.js?v=20261116b"></script>
 <script src="lb-icons.js"></script>
 <script>
@@ -201,7 +201,7 @@ function gate(st,i){return()=>{(got[st]=got[st]||new Set()).add(i);upd()}}
 // Communicator, and Leader have their own Chapter 1 sample in the exact same shape, so this one
 // render pipeline drives every level without needing a separate lesson system per level.
 const listenItems=C.listenItems;
-try{LB_ttsPrefetch([].concat((C.conversation||[]).map(x=>[x[1],'conversational']),(C.listenItems||[]).map(q=>[q.say,'conversational'])))}catch(e){}
+try{const pf=[];(C.vocab1||[]).concat(C.vocab2||[]).forEach(v=>pf.push([v[0],'pronunciation']));(C.whenSayIt||[]).forEach(v=>{if(v[3])pf.push([v[3],'conversational'])});(C.conversation||[]).forEach(x=>pf.push([x[1],'conversational']));(C.roleplay||[]).forEach(x=>pf.push([x[1],'pronunciation']));(C.listenItems||[]).forEach(q=>pf.push([q.say,'conversational']));if(C.readPassage)LB_chunkText(C.readPassage,190).forEach(x=>pf.push([x,'conversational']));LB_ttsPrefetch(pf)}catch(e){}
 const readQ=C.readQ;
 const match=C.match;
 
