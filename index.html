@@ -479,7 +479,7 @@
       <div class="hero-cta">
         <a href="linguabridge-try.html" class="fun-btn fun-go">Try a free lesson</a>
         <a href="linguabridge-login-2.html" class="fun-btn fun-alt">Log in</a>
-        <p class="private-note">Free for every child &bull; Ages 5&ndash;17 &bull; No ads</p>
+        <p class="private-note">Free for every child &bull; Ages 5&ndash;17</p>
       </div>
     </div>
 
@@ -525,8 +525,8 @@
       <h2>I'm Araiya! Welcome.</h2>
       <p class="f-pull">I built LinguaBridge because no child should have to pay to learn how to say hello.</p>
       <p>I'm a student, and I spent months building this place one lesson at a time: every word, every game, every picture. I named the helper Bridge because English can be a bridge to new friends, to school, and to bright new opportunities.</p>
-      <p>Everything here is free, with no fees and no ads. When you tap a word and hear it, or get an answer right and the confetti falls, I hope you feel proud and think, "I can do this!"</p>
-      <p>Because children's safety comes first, I keep LinguaBridge friendly and careful. Bridge only talks about learning English, accounts are created by invitation, and I approve every one myself. Parents and teachers, I would be happy to hear from you.</p>
+      <p>Everything here is free. When you tap a word and hear it, or get an answer right and the confetti falls, I hope you feel proud and think, "I can do this!"</p>
+      <p>Because children's safety comes first, I keep LinguaBridge friendly and careful. Bridge only talks about learning English, and signing up only takes a minute. Parents and teachers, I would be happy to hear from you.</p>
       <p>Come try a free lesson. I can't wait for you to meet Bridge!</p>
       <p class="founder-sign">With love,<br><span class="f-sig">Araiya Patel</span><small>Founder of LinguaBridge</small></p>
     </div>
@@ -547,7 +547,7 @@
   <div class="fun-in">
     <p class="fun-kicker">How it works</p>
     <h2>Three easy steps</h2>
-    <ol class="fs-list"><li><span class="fs-n">1</span><div><h3>Try a free lesson</h3><p>No account needed. See what it is like.</p></div></li><li><span class="fs-n">2</span><div><h3>Ask for a family invite</h3><p>Your parent or teacher asks the founder. Every account is approved by hand.</p></div></li><li><span class="fs-n">3</span><div><h3>Learn with Bridge</h3><p>Log in, pick a lesson, and earn your stars.</p></div></li></ol>
+    <ol class="fs-list"><li><span class="fs-n">1</span><div><h3>Try a free lesson</h3><p>No account needed. See what it is like.</p></div></li><li><span class="fs-n">2</span><div><h3>Sign up</h3><p>Pick a username and a password. It only takes a minute.</p></div></li><li><span class="fs-n">3</span><div><h3>Learn with Bridge</h3><p>Log in, pick a lesson, and earn your stars.</p></div></li></ol>
     <p class="fs-note">Parents and teachers: <a href="linguabridge-contact.html">ask for access here</a>.</p>
   </div>
 </section>
@@ -589,5 +589,10 @@
 
 <script src="lb-icons.js"></script>
 <script src="lb-fun.js"></script>
+<script>
+/* After login everyone lands here. If signed in, the Log in buttons become "My lessons". */
+(function(){fetch('https://api.lingua-bridge.us/api/me',{credentials:'include'}).then(function(r){return r.json()}).then(function(d){
+ if(!d||!d.authenticated)return;document.querySelectorAll('a[href="linguabridge-login-2.html"]').forEach(function(a){a.href='linguabridge-dashboard.html';a.textContent=a.classList.contains('fun-btn')?'My lessons':'My Lessons'})}).catch(function(){})})();
+</script>
 </body>
 </html>
