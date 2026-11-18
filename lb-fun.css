@@ -1,5 +1,5 @@
 :root{--sun:#FFC83D;--coral:#FF7A59;--grape:#8B6BFF}
-.hero{background:linear-gradient(180deg,#BFE7FF 0%,#E3F4FF 55%,#FFF4D6 100%)!important;padding-bottom:70px!important}
+.hero{background:linear-gradient(180deg,#D2C7FF 0%,#E3DBFF 55%,#FFF4D6 100%)!important;padding-bottom:70px!important}
 .hero h1 .script{color:var(--coral)!important;text-shadow:3px 3px 0 #FFE2A8}
 .hero-sub{color:var(--sky-deep)}
 .hero-cta{flex-direction:row!important;flex-wrap:wrap;align-items:center!important;gap:14px!important}
@@ -51,7 +51,7 @@
 @media(prefers-reduced-motion:reduce){.fun-float i,.fun-go,#bridgeMascot.hop,.fc{animation:none!important}}
 
 /* ---- shared by about / contact / try ---- */
-.fun-page{background:linear-gradient(180deg,#CFEBFF 0,#E9F6FF 360px,#FFF9F1 760px)!important}
+.fun-page{background:linear-gradient(180deg,#E3DBFF 0,#F1EDFF 360px,#FFF9F1 760px)!important}
 .fun-float.top{position:absolute;inset:0 0 auto 0;height:640px;z-index:0}
 .fun-page main,.fun-page .about-main{position:relative;z-index:1}
 .fun-page .eyebrow{color:var(--coral)!important}
@@ -62,12 +62,12 @@
 .fun-page .try-card h2 .fc-ico{width:48px;height:48px;border-radius:16px;margin:0;flex:none}
 .fun-page .try-card h2 .fc-ico svg{width:28px;height:28px}
 .fun-page .tbtn{background:linear-gradient(180deg,#FF9A5C,var(--coral))!important;box-shadow:0 5px 0 rgba(0,0,0,.15)!important;font-size:1.05rem!important;padding:13px 26px!important}
-.fun-page .cta{background:linear-gradient(135deg,#8B6BFF,#159FE8)!important}
+.fun-page .cta{background:linear-gradient(135deg,#8B6BFF,#7A5CF0)!important}
 /* about */
 .about-hero.hero{padding-bottom:80px!important}
 .mv-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:1040px;margin:-30px auto 0;padding:0 24px;position:relative;z-index:2}
 .mv{border-radius:32px;padding:34px 30px;color:#fff;box-shadow:0 8px 0 rgba(0,0,0,.14);text-align:left}
-.mv.m{background:linear-gradient(135deg,#159FE8,#0B6FAE)}.mv.v{background:linear-gradient(135deg,#8B6BFF,#6A4BD8)}
+.mv.m{background:linear-gradient(135deg,#7A5CF0,#5A33C9)}.mv.v{background:linear-gradient(135deg,#8B6BFF,#6A4BD8)}
 .mv .fc-ico{background:rgba(255,255,255,.22);box-shadow:none;margin:0 0 14px}
 .mv p.k{margin:0 0 4px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:.78rem;opacity:.85}
 .mv h2{font-family:var(--font-head);margin:0 0 12px;font-size:2rem;color:#fff}
@@ -91,10 +91,10 @@
 
 /* ================= KID THEME v2: bright, rainbow, bouncy ================= */
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
-:root{--font-head:'Fredoka','Lexend',sans-serif;--font-body:'Fredoka','Lexend',sans-serif;--pink:#FF8A3D;--mint:#2BD4A0;--sunny:#FFD21F;--sky2:#2DB7FF}
+:root{--font-head:'Fredoka','Lexend',sans-serif;--font-body:'Fredoka','Lexend',sans-serif;--pink:#FF8A3D;--mint:#2BD4A0;--sunny:#FFD21F;--sky2:#8B6BFF}
 body{font-family:'Fredoka','Lexend',sans-serif!important;font-size:1.04rem;
  background-color:#FFFBEF!important;
- background-image:radial-gradient(circle,#D6F4E6 2.5px,transparent 3px),radial-gradient(circle,#CFEFFF 2.5px,transparent 3px);
+ background-image:radial-gradient(circle,#D6F4E6 2.5px,transparent 3px),radial-gradient(circle,#E3DBFF 2.5px,transparent 3px);
  background-size:46px 46px,46px 46px;background-position:0 0,23px 23px}
 h1,h2,h3,.fun-in h2,.founder h2,.f-pull,.fc h3,.fs-list h3,.mv h2{font-family:'Fredoka','Lexend',sans-serif!important;font-weight:700!important}
 .hero h1{font-size:clamp(2.6rem,6.4vw,4.6rem)!important;line-height:1.05!important;letter-spacing:-.01em}
@@ -102,29 +102,29 @@ h1,h2,h3,.fun-in h2,.founder h2,.f-pull,.fc h3,.fs-list h3,.mv h2{font-family:'F
 .hero-sub,.f-tag,.founder-sign,.f-name{font-family:'Lobster',cursive!important;font-style:normal!important}
 /* rainbow ribbon */
 .nav{background:rgba(255,255,255,.95)!important;border-bottom:0!important;position:sticky}
-.nav::after{content:"";display:block;height:7px;background:linear-gradient(90deg,#FF8A3D 0 16.6%,#FF7A59 0 33.3%,#FFD21F 0 50%,#2BD4A0 0 66.6%,#2DB7FF 0 83.3%,#8B6BFF 0)}
+.nav::after{content:"";display:block;height:7px;background:linear-gradient(90deg,#FF8A3D 0 16.6%,#FF7A59 0 33.3%,#FFD21F 0 50%,#2BD4A0 0 66.6%,#8B6BFF 0 83.3%,#8B6BFF 0)}
 .nav-links a:not(.btn){font-weight:600;font-size:1.02rem;border-radius:999px;padding:7px 14px!important;border-bottom:0!important;transition:transform .15s,background .15s}
 .nav-links a:nth-child(1):hover{background:#E8F8F0}.nav-links a:nth-child(2):hover{background:#FFE9D6}.nav-links a:nth-child(3):hover{background:#FFF3B8}
-.nav-links a:nth-child(4):hover{background:#CFF7E8}.nav-links a:nth-child(5):hover{background:#D6EFFF}.nav-links a:nth-child(6):hover{background:#E6DEFF}
+.nav-links a:nth-child(4):hover{background:#CFF7E8}.nav-links a:nth-child(5):hover{background:#E3DBFF}.nav-links a:nth-child(6):hover{background:#E6DEFF}
 .nav-links a:not(.btn):hover{transform:translateY(-2px) rotate(-2deg)}
 .nav-links .nav-signup{background:var(--sunny);color:var(--navy)!important;box-shadow:0 4px 0 #E0A800}
 .btn-primary{background:linear-gradient(180deg,#3DDC97,#12A15A)!important;box-shadow:0 5px 0 #0C7A41!important;font-weight:700}
 .logo-mark{animation:lbWig 5s ease-in-out infinite}
 @keyframes lbWig{0%,90%,100%{transform:rotate(0)}93%{transform:rotate(-5deg)}96%{transform:rotate(5deg)}}
 /* hero */
-.hero{background:radial-gradient(circle at 12% 18%,#FFF0A8 0 70px,transparent 71px),linear-gradient(180deg,#7FD3FF 0%,#B8E8FF 45%,#E4F7FF 80%,#FFF4C9 100%)!important;position:relative;overflow:hidden;padding-bottom:90px!important}
+.hero{background:radial-gradient(circle at 12% 18%,#FFF0A8 0 70px,transparent 71px),linear-gradient(180deg,#7FD3FF 0%,#D2C7FF 45%,#E3DBFF 80%,#FFF4C9 100%)!important;position:relative;overflow:hidden;padding-bottom:90px!important}
 .hero::before{content:"☁";position:absolute;font-size:7rem;color:#fff;opacity:.9;left:48%;top:18px;animation:lbCloud 24s linear infinite;pointer-events:none}
 .hero::after{content:"☁";position:absolute;font-size:5rem;color:#fff;opacity:.8;left:-8%;top:150px;animation:lbCloud 34s linear infinite;animation-delay:-12s;pointer-events:none}
 @keyframes lbCloud{from{transform:translateX(-10vw)}to{transform:translateX(110vw)}}
 .eyebrow{display:inline-block;background:var(--pink);color:#fff!important;padding:7px 18px;border-radius:999px;letter-spacing:.06em!important;font-weight:700!important;box-shadow:0 4px 0 #C85A14;transform:rotate(-2deg)}
 .hero h1 .script{color:var(--pink)!important;text-shadow:3px 3px 0 #fff,6px 6px 0 #FFD21F!important}
-.hero-sub{color:#0B6FAE!important;font-size:1.7rem!important}
+.hero-sub{color:#5A33C9!important;font-size:1.7rem!important}
 .hero-copy{font-size:1.2rem!important;color:#1F3D5C!important;font-weight:500}
 .fun-go{background:linear-gradient(180deg,#FFB36B,var(--pink))!important;box-shadow:0 6px 0 #C85A14!important}
 #heroSignup{background:linear-gradient(180deg,#FFE15C,#FFC21F)!important;color:var(--navy)!important;box-shadow:0 6px 0 #D99A00!important}
 .fun-alt{border-color:#8B6BFF!important;color:#5A3FD0!important;box-shadow:0 6px 0 #C9BCFF!important}
 .hero-cta .private-note{flex-basis:auto!important;width:fit-content}
-.private-note{background:#fff;display:inline-block;padding:6px 16px;border-radius:999px;font-weight:600;color:#0B6FAE!important}
+.private-note{background:#fff;display:inline-block;padding:6px 16px;border-radius:999px;font-weight:600;color:#5A33C9!important}
 .fun-float i{box-shadow:0 6px 0 rgba(0,0,0,.12)}
 .f1{background:var(--pink)!important}.f3{background:var(--mint)!important}
 #bridgeMascot{animation:lbBob 3.2s ease-in-out infinite;transform-origin:50% 90%}
@@ -139,11 +139,11 @@ h1,h2,h3,.fun-in h2,.founder h2,.f-pull,.fc h3,.fs-list h3,.mv h2{font-family:'F
 .founder h2{color:#0B3B6B!important;font-size:2.4rem!important}
 .f-pull{color:#12A15A!important;border-left:6px solid var(--pink)!important;background:#fff;border-radius:0 22px 22px 0;padding:14px 18px!important;box-shadow:0 5px 0 #D6F4E6}
 .f-note p{color:#33405A!important;font-size:1.12rem!important}
-.founder::before{background:#FFD21F!important;opacity:.35!important}.founder::after{background:#2DB7FF!important;opacity:.28!important}
+.founder::before{background:#FFD21F!important;opacity:.35!important}.founder::after{background:#8B6BFF!important;opacity:.28!important}
 /* feature cards in rainbow */
 .fun-wrap{background:#fff!important;background-image:radial-gradient(circle,#FFE9A6 3px,transparent 3.5px);background-size:40px 40px}
 .fc{border:4px solid #fff;box-shadow:0 8px 0 rgba(0,0,0,.12)!important;border-radius:30px!important}
-.fc:nth-child(1){background:#D6F0FF!important}.fc:nth-child(2){background:#FFE4D2!important}.fc:nth-child(3){background:#E7DEFF!important}.fc:nth-child(4){background:#D3F6E4!important}
+.fc:nth-child(1){background:#E3DBFF!important}.fc:nth-child(2){background:#FFE4D2!important}.fc:nth-child(3){background:#E7DEFF!important}.fc:nth-child(4){background:#D3F6E4!important}
 .fc:hover{transform:translateY(-10px) rotate(-2deg) scale(1.03)!important}
 .fc-ico{border-radius:50%!important;width:84px!important;height:84px!important;animation:lbBob 3s ease-in-out infinite}
 .fc:nth-child(2) .fc-ico{animation-delay:-.7s}.fc:nth-child(3) .fc-ico{animation-delay:-1.4s}.fc:nth-child(4) .fc-ico{animation-delay:-2.1s}
@@ -154,15 +154,15 @@ h1,h2,h3,.fun-in h2,.founder h2,.f-pull,.fc h3,.fs-list h3,.mv h2{font-family:'F
 /* steps */
 .fun-steps{background:linear-gradient(180deg,#FFF4C9,#E8F8F0)!important}
 .fs-list li{border:4px solid #fff;box-shadow:0 7px 0 rgba(0,0,0,.1)!important;border-radius:28px!important}
-.fs-list li:nth-child(1){background:#D6F0FF}.fs-list li:nth-child(2){background:#FFE4D2}.fs-list li:nth-child(3){background:#D3F6E4}
+.fs-list li:nth-child(1){background:#E3DBFF}.fs-list li:nth-child(2){background:#FFE4D2}.fs-list li:nth-child(3){background:#D3F6E4}
 .fs-n{width:56px!important;height:56px!important;font-size:1.7rem!important;box-shadow:0 4px 0 rgba(0,0,0,.18)}
 .fs-list li:hover .fs-n{animation:lbWig .6s}
 /* footer */
-footer{background:linear-gradient(180deg,#0B3B6B,#08294B)!important;border-top:8px solid transparent;border-image:linear-gradient(90deg,#FF8A3D,#FF7A59,#FFD21F,#2BD4A0,#2DB7FF,#8B6BFF) 1}
+footer{background:linear-gradient(180deg,#0B3B6B,#08294B)!important;border-top:8px solid transparent;border-image:linear-gradient(90deg,#FF8A3D,#FF7A59,#FFD21F,#2BD4A0,#8B6BFF,#8B6BFF) 1}
 .footer-slogan{font-family:'Lobster',cursive!important;color:#FFD21F!important;font-size:1.4rem}
 /* other pages */
-.fun-page{background-color:#FFFBEF!important;background-image:linear-gradient(180deg,#9ADCFF 0,#D5F1FF 340px,rgba(255,251,239,0) 700px),radial-gradient(circle,#D6F4E6 2.5px,transparent 3px)!important;background-size:100% 100%,46px 46px!important}
-.mv{border:4px solid #fff;border-radius:34px!important}.mv.m{background:linear-gradient(135deg,#2DB7FF,#0B8FD6)!important}.mv.v{background:linear-gradient(135deg,#FFA25C,#E07020)!important}
+.fun-page{background-color:#FFFBEF!important;background-image:linear-gradient(180deg,#D2C7FF 0,#E3DBFF 340px,rgba(255,251,239,0) 700px),radial-gradient(circle,#D6F4E6 2.5px,transparent 3px)!important;background-size:100% 100%,46px 46px!important}
+.mv{border:4px solid #fff;border-radius:34px!important}.mv.m{background:linear-gradient(135deg,#8B6BFF,#6A4BD8)!important}.mv.v{background:linear-gradient(135deg,#FFA25C,#E07020)!important}
 .fun-founder{border:4px solid #fff;box-shadow:0 8px 0 #D6F4E6!important}
 .fun-end{background:linear-gradient(180deg,#FFFBEF,#E8F8F0)!important}
 .try-card{border-radius:30px!important}
@@ -176,7 +176,7 @@ a.fun-btn:focus-visible,.nav a:focus-visible{outline:4px solid #8B6BFF}
 .gm-bridge{background:linear-gradient(135deg,#FF8A3D,#FF8A3D)!important}
 
 /* LISTEN BUTTON (founder note, About card) */
-.listen-btn{display:inline-flex;align-items:center;gap:10px;margin:4px 0 18px;padding:12px 22px;border:0;border-radius:999px;background:linear-gradient(135deg,#159FE8,#8B6BFF);color:#fff;font:700 1.05rem/1 'Fredoka','Lexend',sans-serif;cursor:pointer;box-shadow:0 5px 0 rgba(11,59,107,.25);transition:transform .15s,box-shadow .15s}
+.listen-btn{display:inline-flex;align-items:center;gap:10px;margin:4px 0 18px;padding:12px 22px;border:0;border-radius:999px;background:linear-gradient(135deg,#7A5CF0,#8B6BFF);color:#fff;font:700 1.05rem/1 'Fredoka','Lexend',sans-serif;cursor:pointer;box-shadow:0 5px 0 rgba(11,59,107,.25);transition:transform .15s,box-shadow .15s}
 .listen-btn:hover{transform:translateY(-2px)}.listen-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(11,59,107,.25)}
 .listen-btn.on{background:linear-gradient(135deg,#FF8A3D,#FF8A3D)}
 .listen-btn:focus-visible{outline:3px solid #0B3B6B;outline-offset:3px}
@@ -186,9 +186,9 @@ a.fun-btn:focus-visible,.nav a:focus-visible{outline:4px solid #8B6BFF}
 .fc .fc-top{display:none!important}
 
 /* HOME v3 (2026-11-16): no more white blocks; everything bright and playful */
-.nav{background:linear-gradient(90deg,#FFF1B8 0%,#D6F4E6 38%,#D8EEFF 70%,#E4DAFF 100%)!important;border-bottom:0!important}
-.fun-wrap{background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.55) 0 7px,transparent 8px) 0 0/90px 90px,radial-gradient(circle at 62% 70%,rgba(255,255,255,.5) 0 5px,transparent 6px) 0 0/70px 70px,linear-gradient(180deg,#B9E6FF 0%,#D5EEFF 38%,#FFF0B5 100%)!important}
-.fun-wrap .fun-wave path{fill:#B9E6FF!important}
+.nav{background:linear-gradient(90deg,#FFF1B8 0%,#D6F4E6 38%,#E3DBFF 70%,#E4DAFF 100%)!important;border-bottom:0!important}
+.fun-wrap{background:radial-gradient(circle at 12% 18%,rgba(255,255,255,.55) 0 7px,transparent 8px) 0 0/90px 90px,radial-gradient(circle at 62% 70%,rgba(255,255,255,.5) 0 5px,transparent 6px) 0 0/70px 70px,linear-gradient(180deg,#D2C7FF 0%,#E3DBFF 38%,#FFF0B5 100%)!important}
+.fun-wrap .fun-wave path{fill:#D2C7FF!important}
 .fun-wrap .fun-in h2{color:#0B3B6B}
 .fun-wrap::before,.fun-wrap::after{content:"";position:absolute;pointer-events:none;border-radius:50%}
 .fun-wrap{position:relative;overflow:hidden}
@@ -196,4 +196,4 @@ a.fun-btn:focus-visible,.nav a:focus-visible{outline:4px solid #8B6BFF}
 .fun-wrap::after{width:300px;height:300px;right:-90px;bottom:-60px;background:rgba(139,107,255,.2)}
 .fun-in{position:relative;z-index:1}
 .fc{box-shadow:0 8px 0 rgba(11,59,107,.12)!important}
-body{background:linear-gradient(180deg,#FFF6D6,#E8F8F0 40%,#DDF1FF)!important}
+body{background:linear-gradient(180deg,#FFF6D6,#E8F8F0 40%,#E3DBFF)!important}
