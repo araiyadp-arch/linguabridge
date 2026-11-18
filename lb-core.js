@@ -286,7 +286,7 @@ window.LB_fanfare=LB_fanfare;
 function LB_confetti(ms){if(!ms||ms>=1500){try{LB_fanfare(ms>=3000?'big':'small')}catch(e){}}
  try{const c=document.createElement('canvas');c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:99999';
   c.width=innerWidth;c.height=innerHeight;document.body.appendChild(c);const x=c.getContext('2d');
-  const col=['#FFC83D','#159FE8','#12864A','#F0604D','#9B6BE0','#FF8FB1','#7FCB6E'];
+  const col=['#FFC83D','#159FE8','#12864A','#F0604D','#9B6BE0','#FFB36B','#7FCB6E'];
   const P=Array.from({length:150},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.6,w:6+Math.random()*7,h:9+Math.random()*9,vy:2.5+Math.random()*4,vx:-2+Math.random()*4,r:Math.random()*6,vr:-.2+Math.random()*.4,c:col[Math.floor(Math.random()*col.length)]}));
   const end=performance.now()+(ms||3600);
   (function f(){x.clearRect(0,0,c.width,c.height);P.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.c;x.fillRect(-p.w/2,-p.h/2,p.w,p.h);x.restore()});
