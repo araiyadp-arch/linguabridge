@@ -152,7 +152,7 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 
 .sayit{display:inline-flex;align-items:center;gap:8px}
 .sayit svg{flex:none}
-.sayit.turn{background:#E98B4A;animation:micPulse 1s ease-in-out infinite;position:relative;overflow:hidden;line-height:1.25;padding:6px 22px 13px;margin-top:8px}
+.sayit.turn{background:#FF8A3D;animation:micPulse 1s ease-in-out infinite;position:relative;overflow:hidden;line-height:1.25;padding:6px 22px 13px;margin-top:8px}
 .sayit .tbar{position:absolute;left:0;right:0;bottom:0;height:6px;background:rgba(255,255,255,.35)}
 .sayit .tbar b{display:block;height:100%;width:100%;background:#fff;transform-origin:left;animation:tbarGo linear forwards}
 @keyframes tbarGo{from{transform:scaleX(1)}to{transform:scaleX(0)}}
@@ -169,8 +169,8 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 <div class="actions"><a class="btn btn-primary" href="linguabridge-see-you-tomorrow.html">Continue</a></div>
 
 </div></main>
-<script src="lb-core.js?v=20261117b"></script>
-<script src="lb-content.js?v=20261117b"></script>
+<script src="lb-core.js?v=20261117a"></script>
+<script src="lb-content.js?v=20261117a"></script>
 <script src="lb-icons.js"></script>
 <script>
 // LESSON VIDEO RENDERER — plays Bridge's animated scene-by-scene video
@@ -178,12 +178,12 @@ h1 .script{font-family:var(--font-script);font-weight:400;color:var(--green);fon
 // progress bar, play/pause/replay/mute controls). Restored 2026-10-30:
 // lost in the same translator-removal regression described in 150b41d.
 const VIDEO_URL='';   /* e.g. 'videos/explorer-lesson-1.mp4' once a real video exists */
-const BR=`<svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="lbRb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#EC9877"/><stop offset=".22" stop-color="#EC9877"/><stop offset=".42" stop-color="#EBCB60"/><stop offset=".62" stop-color="#6FC79A"/><stop offset=".82" stop-color="#6FB6E0"/><stop offset="1" stop-color="#9886DE"/></linearGradient></defs>
-        <ellipse cx="210" cy="262" rx="170" ry="26" fill="#CFC9EE" opacity="0.12"/>
-        <rect x="4" y="248" width="66" height="18" rx="7" fill="#7E70C9"/>
-        <rect x="350" y="248" width="66" height="18" rx="7" fill="#7E70C9"/>
-        <rect x="130" y="204" width="14" height="48" rx="7" fill="#7E70C9"/>
-        <rect x="276" y="204" width="14" height="48" rx="7" fill="#7E70C9"/>
+const BR=`<svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="lbRb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FF8A3D"/><stop offset=".22" stop-color="#FF8A3D"/><stop offset=".42" stop-color="#FFD21F"/><stop offset=".62" stop-color="#2BD4A0"/><stop offset=".82" stop-color="#2DB7FF"/><stop offset="1" stop-color="#8B6BFF"/></linearGradient></defs>
+        <ellipse cx="210" cy="262" rx="170" ry="26" fill="#8B6BFF" opacity="0.12"/>
+        <rect x="4" y="248" width="66" height="18" rx="7" fill="#6A4BD8"/>
+        <rect x="350" y="248" width="66" height="18" rx="7" fill="#6A4BD8"/>
+        <rect x="130" y="204" width="14" height="48" rx="7" fill="#6A4BD8"/>
+        <rect x="276" y="204" width="14" height="48" rx="7" fill="#6A4BD8"/>
         <path d="M30 258 Q210 108 390 258" stroke="url(#lbRb)" stroke-width="34" stroke-linecap="round" fill="none"/>
         <path d="M30 250 Q210 100 390 250" stroke="#ffffff" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.28"/>
         <path d="M30 258 Q210 108 390 258" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none" stroke-dasharray="1 15" opacity="0.9"/>
@@ -191,12 +191,12 @@ const BR=`<svg class="bridge" viewBox="0 0 420 360" xmlns="http://www.w3.org/200
         <circle cx="224" cy="176" r="6" fill="#0B3B6B"/>
         <circle cx="198" cy="174" r="1.6" fill="#ffffff"/>
         <circle cx="226" cy="174" r="1.6" fill="#ffffff"/>
-        <circle cx="180" cy="190" r="8" fill="#F7CDB4" opacity="0.9"/>
-        <circle cx="240" cy="190" r="8" fill="#F7CDB4" opacity="0.9"/>
+        <circle cx="180" cy="190" r="8" fill="#FFB36B" opacity="0.9"/>
+        <circle cx="240" cy="190" r="8" fill="#FFB36B" opacity="0.9"/>
         <path d="M199 194 Q210 203 221 194" stroke="#0B3B6B" stroke-width="3.5" stroke-linecap="round" fill="none"/>
         <g class="wave-arm">
-          <path d="M300 198 Q336 172 338 128" stroke="#EC9877" stroke-width="15" stroke-linecap="round" fill="none"/>
-          <circle cx="338" cy="126" r="14" fill="#ffffff" stroke="#EC9877" stroke-width="4"/>
+          <path d="M300 198 Q336 172 338 128" stroke="#FF8A3D" stroke-width="15" stroke-linecap="round" fill="none"/>
+          <circle cx="338" cy="126" r="14" fill="#ffffff" stroke="#FF8A3D" stroke-width="4"/>
         </g>
       </svg>`;
 const vid=document.getElementById('vid');
