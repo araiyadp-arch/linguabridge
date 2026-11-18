@@ -117,7 +117,7 @@ h1,h2,h3,.fun-in h2,.founder h2,.f-pull,.fc h3,.fs-list h3,.mv h2{font-family:'F
 .hero::after{content:"☁";position:absolute;font-size:5rem;color:#fff;opacity:.8;left:-8%;top:150px;animation:lbCloud 34s linear infinite;animation-delay:-12s;pointer-events:none}
 @keyframes lbCloud{from{transform:translateX(-10vw)}to{transform:translateX(110vw)}}
 .eyebrow{display:inline-block;background:var(--pink);color:#fff!important;padding:7px 18px;border-radius:999px;letter-spacing:.06em!important;font-weight:700!important;box-shadow:0 4px 0 #C85A14;transform:rotate(-2deg)}
-.hero h1 .script{color:var(--pink)!important;text-shadow:3px 3px 0 #fff,6px 6px 0 #FFD21F!important}
+.hero h1 .script{color:#FF5FA2!important;text-shadow:3px 3px 0 #fff,6px 6px 0 #FFD21F!important}
 .hero-sub{color:#5A33C9!important;font-size:1.7rem!important}
 .hero-copy{font-size:1.2rem!important;color:#1F3D5C!important;font-weight:500}
 .fun-go{background:linear-gradient(180deg,#FFB36B,var(--pink))!important;box-shadow:0 6px 0 #C85A14!important}
@@ -150,7 +150,7 @@ h1,h2,h3,.fun-in h2,.founder h2,.f-pull,.fc h3,.fs-list h3,.mv h2{font-family:'F
 .fc p{color:#33405A!important;font-weight:500}
 .fun-kicker{background:var(--sunny);color:var(--navy)!important;display:inline-block;padding:6px 18px;border-radius:999px;box-shadow:0 4px 0 #D99A00;transform:rotate(-1.5deg)}
 .fun-in h2{font-size:clamp(2.1rem,4.5vw,3.1rem)!important}
-.fun-in h2 .script{color:var(--pink)!important}
+.fun-in h2 .script{color:#FF5FA2!important}
 /* steps */
 .fun-steps{background:linear-gradient(180deg,#FFF4C9,#E8F8F0)!important}
 .fs-list li{border:4px solid #fff;box-shadow:0 7px 0 rgba(0,0,0,.1)!important;border-radius:28px!important}
